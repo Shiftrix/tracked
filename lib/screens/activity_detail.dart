@@ -128,6 +128,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     final elapsed = running && _startedAt != null
         ? DateTime.now().difference(_startedAt!)
         : Duration.zero;
+    // Add the currently-running elapsed time to both displayed totals,
+    // so they tick live while a session is active.
+    final liveToday = _todayTotal + elapsed;
+    final liveTotal = _total + elapsed;
 
     return Scaffold(
       appBar: AppBar(
@@ -170,8 +174,8 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Today: ${_formatTotal(_todayTotal)}  •  '
-                    'Total: ${_formatTotal(_total)}',
+                    'Today: ${_formatTotal(liveToday)}  •  '
+                    'Total: ${_formatTotal(liveTotal)}',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 24),
