@@ -149,96 +149,120 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Live timer / Start-Stop area
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Text(
-                  running ? _formatClock(elapsed) : '00:00:00',
-                  style: TextStyle(
-                    fontSize: 56,
-                    fontWeight: FontWeight.w300,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                    color: running ? Colors.green : Colors.grey,
+      body: CustomScrollView(
+        slivers: [
+          // Timer + today/total + Start/Stop button
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24 + 128),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    running ? _formatClock(elapsed) : '00:00:00',
+                    style: TextStyle(
+                      fontSize: 56,
+                      fontWeight: FontWeight.w300,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      color: running ? Colors.green : Colors.grey,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Today: ${_formatTotal(_todayTotal)}  •  '
-                  'Total: ${_formatTotal(_total)}',
+                  const SizedBox(height: 8),
+                  Text(
+                    'Today: ${_formatTotal(_todayTotal)}  •  '
+                    'Total: ${_formatTotal(_total)}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton.icon(
+                    onPressed: running ? _stop : _start,
+                    icon: Icon(running ? Icons.stop : Icons.play_arrow),
+                    label: Text(running ? 'Stop' : 'Start'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 48,
+                        vertical: 20,
+                      ),
+                      textStyle: const TextStyle(fontSize: 20),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Heatmap section
+          const SliverToBoxAdapter(child: Divider(height: 1)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'This month',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: running ? _stop : _start,
-                  icon: Icon(running ? Icons.stop : Icons.play_arrow),
-                  label: Text(running ? 'Stop' : 'Start'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 48,
-                      vertical: 20,
-                    ),
-                    textStyle: const TextStyle(fontSize: 20),
-                  ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: MonthHeatmap(
+                month: DateTime.now(),
+                dailyTotals: _dailyTotals,
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+          // Recent sessions header
+          const SliverToBoxAdapter(child: Divider(height: 1)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Recent sessions',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'This month',
-                style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: MonthHeatmap(
-              month: DateTime.now(),
-              dailyTotals: _dailyTotals,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Recent sessions',
-                style: Theme.of(context).textTheme.titleMedium,
+
+          // Sessions list — this is the sliver that actually grows.
+          if (_sessions.isEmpty)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: Text('No completed sessions yet')),
               ),
-            ),
-          ),
-          Expanded(
-            child: _sessions.isEmpty
-                ? const Center(child: Text('No completed sessions yet'))
-                : ListView.builder(
-                    itemCount: _sessions.length,
-                    itemBuilder: (context, i) {
-                      final s = _sessions[i];
-                      final dur = s.duration;
-                      final started = s.startedAt;
-                      return ListTile(
-                        dense: true,
-                        title: Text(
-                          '${started.day}/${started.month} '
-                          '${started.hour.toString().padLeft(2, '0')}:'
-                          '${started.minute.toString().padLeft(2, '0')}',
-                        ),
-                        trailing: Text(
-                          dur == null ? 'running' : _formatSessionDuration(dur),
-                        ),
-                      );
-                    },
+            )
+          else
+            SliverList.builder(
+              itemCount: _sessions.length,
+              itemBuilder: (context, i) {
+                final s = _sessions[i];
+                final dur = s.duration;
+                final started = s.startedAt;
+                return ListTile(
+                  dense: true,
+                  title: Text(
+                    '${started.day}/${started.month} '
+                    '${started.hour.toString().padLeft(2, '0')}:'
+                    '${started.minute.toString().padLeft(2, '0')}',
                   ),
-          ),
+                  trailing: Text(
+                    dur == null ? 'running' : _formatSessionDuration(dur),
+                  ),
+                );
+              },
+            ),
+
+          // Bottom breathing room
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ),
     );
