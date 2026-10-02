@@ -26,8 +26,8 @@ class MonthHeatmap extends StatelessWidget {
     return 5;
   }
 
-  Color _colorForBucket(int bucket, ColorScheme scheme) {
-    // Use the theme seed color at different opacities.
+  /// Public lookup so the legend can render matching colors.
+  static Color colorForBucket(int bucket, ColorScheme scheme) {
     final base = scheme.primary;
     switch (bucket) {
       case 0:
@@ -90,7 +90,7 @@ class MonthHeatmap extends StatelessWidget {
             final date = DateTime(month.year, month.month, dayNumber);
             final total = dailyTotals[date] ?? Duration.zero;
             final bucket = _bucketFor(total);
-            final color = _colorForBucket(bucket, scheme);
+            final color = MonthHeatmap.colorForBucket(bucket, scheme);
 
             return GestureDetector(
               onTap: () {
@@ -133,6 +133,33 @@ class MonthHeatmap extends StatelessWidget {
               ),
             );
           },
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(
+              'Less',
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(width: 6),
+            for (int b = 0; b <= 5; b++) ...[
+              Container(
+                width: 12,
+                height: 12,
+                margin: const EdgeInsets.symmetric(horizontal: 1),
+                decoration: BoxDecoration(
+                  color: MonthHeatmap.colorForBucket(b, scheme),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+            const SizedBox(width: 6),
+            Text(
+              'More',
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+            ),
+          ],
         ),
       ],
     );
