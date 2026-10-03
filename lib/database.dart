@@ -31,8 +31,7 @@ class Session {
   });
 
   /// Duration of this session. If it's still running, returns null.
-  Duration? get duration =>
-      endedAt == null ? null : endedAt!.difference(startedAt);
+  Duration? get duration => endedAt?.difference(startedAt);
 
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -91,14 +90,7 @@ class AppDatabase {
         ''');
 
         // Seed with the activities you mentioned.
-        final seed = [
-          'Gym',
-          'Gaming',
-          'Editing',
-          'Revision',
-          'Music',
-          'Game Dev',
-        ];
+        final seed = ['Example'];
         for (final name in seed) {
           await db.insert('activities', {'name': name});
         }
