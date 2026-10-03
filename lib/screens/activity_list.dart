@@ -194,15 +194,14 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _load,
-              child: ListView.separated(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
                 itemCount: _activities.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, i) {
                   final a = _activities[i];
                   final total = _totals[a.id] ?? Duration.zero;
                   final isRunning = _runningSession?.activityId == a.id;
 
-                  // If this row is the running one, compute elapsed live.
                   Duration? elapsed;
                   if (isRunning && _runningSession?.startedAt != null) {
                     elapsed = DateTime.now().difference(
@@ -210,38 +209,102 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
                     );
                   }
 
-                  return ListTile(
-                    leading: isRunning
-                        ? const Icon(
-                            Icons.play_circle,
-                            color: Colors.green,
-                            size: 28,
-                          )
-                        : null,
-                    title: Text(
-                      a.name,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: isRunning ? Colors.green : null,
+                  final subtitle = isRunning
+                      ? 'Running: ${_formatLive(elapsed!)}  •  '
+                            'Total: ${_formatDuration(total)}'
+                      : _formatDuration(total);
+
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ActivityDetailScreen(activity: a),
+                          ),
+                        );
+                        _load();
+                      },
+                      onLongPress: () => _showRowMenu(a),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        child: Row(
+                          children: [
+                            // Colored circle placeholder. In the next step
+                            // we'll replace this with a per-activity icon.
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: isRunning
+                                    ? Colors.green.withValues(alpha: 0.2)
+                                    : Theme.of(context).colorScheme.primary
+                                          .withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: isRunning
+                                  ? const Icon(
+                                      Icons.play_arrow,
+                                      color: Colors.green,
+                                      size: 26,
+                                    )
+                                  : Text(
+                                      a.name.isNotEmpty
+                                          ? a.name[0].toUpperCase()
+                                          : '?',
+                                      style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w600,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    a.name,
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                      color: isRunning ? Colors.green : null,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    subtitle,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: isRunning
+                                          ? Colors.green.withValues(alpha: 0.8)
+                                          : Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    subtitle: Text(
-                      isRunning
-                          ? 'Running: ${_formatLive(elapsed!)}  •  '
-                                'Total: ${_formatDuration(total)}'
-                          : _formatDuration(total),
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ActivityDetailScreen(activity: a),
-                        ),
-                      );
-                      _load();
-                    },
-                    onLongPress: () => _showRowMenu(a),
                   );
                 },
               ),
