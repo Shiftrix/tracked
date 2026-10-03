@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../database.dart';
 import '../widgets/heatmap.dart';
 import 'year_view.dart';
+import '../notifications.dart';
 
 /// Detail screen for one activity: live timer, Start/Stop, recent sessions.
 class ActivityDetailScreen extends StatefulWidget {
@@ -88,6 +89,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
       _runningSessionId = id;
       _startedAt = now;
     });
+    AppNotifications.showRunning(widget.activity.name);
     _manageTicker();
   }
 
@@ -96,6 +98,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     await AppDatabase.stopSession(_runningSessionId!);
     _ticker?.cancel();
     await _loadAll(); // refresh totals and session list
+    AppNotifications.clear();
   }
 
   /// Format a Duration as HH:MM:SS, for the live timer.

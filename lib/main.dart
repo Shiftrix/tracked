@@ -4,7 +4,11 @@ import 'database.dart';
 
 import 'screens/activity_list.dart';
 
-void main() {
+import 'notifications.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppNotifications.init();
   runApp(const LifeTrackerApp());
 }
 
