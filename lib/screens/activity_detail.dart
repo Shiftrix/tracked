@@ -139,14 +139,29 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: ActivityAppearance.color(widget.activity.colorIndex)
+            .withValues(alpha: 0.15),
         title: Row(
           children: [
-            Icon(
-              ActivityAppearance.icon(widget.activity.iconIndex),
-              color: ActivityAppearance.color(widget.activity.colorIndex),
-              size: 22,
+            Hero(
+              tag: 'activity-icon-${widget.activity.id}',
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: ActivityAppearance.color(widget.activity.colorIndex)
+                      .withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  ActivityAppearance.icon(widget.activity.iconIndex),
+                  color: ActivityAppearance.color(widget.activity.colorIndex),
+                  size: 18,
+                ),
+              ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Text(widget.activity.name),
           ],
         ),

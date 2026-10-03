@@ -249,25 +249,28 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
                           children: [
                             // Colored circle placeholder. In the next step
                             // we'll replace this with a per-activity icon.
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: isRunning
-                                    ? Colors.green.withValues(alpha: 0.2)
-                                    : ActivityAppearance.color(a.colorIndex)
-                                          .withValues(alpha: 0.18),
-                                shape: BoxShape.circle,
-                              ),
-                              alignment: Alignment.center,
-                              child: Icon(
-                                isRunning
-                                    ? Icons.play_arrow
-                                    : ActivityAppearance.icon(a.iconIndex),
-                                color: isRunning
-                                    ? Colors.green
-                                    : ActivityAppearance.color(a.colorIndex),
-                                size: 26,
+                            Hero(
+                              tag: 'activity-icon-${a.id}',
+                              child: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: isRunning
+                                      ? Colors.green.withValues(alpha: 0.2)
+                                      : ActivityAppearance.color(a.colorIndex)
+                                            .withValues(alpha: 0.18),
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: Icon(
+                                  isRunning
+                                      ? Icons.play_arrow
+                                      : ActivityAppearance.icon(a.iconIndex),
+                                  color: isRunning
+                                      ? Colors.green
+                                      : ActivityAppearance.color(a.colorIndex),
+                                  size: 26,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 16),
