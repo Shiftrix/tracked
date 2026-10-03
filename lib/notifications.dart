@@ -1,9 +1,14 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class AppNotifications {
   static final _plugin = FlutterLocalNotificationsPlugin();
 
   static Future<void> init() async {
+    // Notifications aren't supported on Linux desktop in this app yet.
+    if (!Platform.isAndroid) return;
+
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     await _plugin.initialize(const InitializationSettings(android: android));
 
@@ -17,6 +22,8 @@ class AppNotifications {
 
   /// Show or update the persistent "running" notification.
   static Future<void> showRunning(String activityName) async {
+    if (!Platform.isAndroid) return;
+
     const details = AndroidNotificationDetails(
       'tracker_running',
       'Active Session',
@@ -37,6 +44,7 @@ class AppNotifications {
   }
 
   static Future<void> clear() async {
+    if (!Platform.isAndroid) return;
     await _plugin.cancel(1);
   }
 }

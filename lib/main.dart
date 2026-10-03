@@ -1,13 +1,21 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'database.dart';
-
 import 'screens/activity_list.dart';
-
 import 'notifications.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // On desktop, sqflite needs an FFI backend instead of the Android one.
+  if (!Platform.isAndroid && !Platform.isIOS) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
+
   await AppNotifications.init();
   runApp(const LifeTrackerApp());
 }
