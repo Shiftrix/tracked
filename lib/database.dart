@@ -134,6 +134,38 @@ class AppDatabase {
     return rows.map((r) => Activity.fromMap(r)).toList();
   }
 
+  /// Insert a new activity with the given name. Returns its new id.
+  static Future<int> insertActivity(String name) async {
+    final db = await instance;
+    return db.insert('activities', {'name': name.trim()});
+  }
+
+  /// Rename an existing activity.
+  static Future<void> updateActivity(int id, String newName) async {
+    final db = await instance;
+    await db.update(
+      'activities',
+      {'name': newName.trim()},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Delete an activity AND all its sessions.
+  /// Returns the number of sessions that were also removed.
+  static Future<int> deleteActivity(int id) async {
+    final db = await instance;
+    return db.transaction((txn) async {
+      final deleted = await txn.delete(
+        'sessions',
+        where: 'activityId = ?',
+        whereArgs: [id],
+      );
+      await txn.delete('activities', where: 'id = ?', whereArgs: [id]);
+      return deleted;
+    });
+  }
+
   /// Total time spent on an activity, summed across all completed sessions.
   /// Running sessions (endedAt IS NULL) are excluded — their time is not
   /// yet final, so they shouldn't count toward the total.

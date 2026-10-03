@@ -6,6 +6,10 @@ import 'activity_detail.dart';
 
 import 'dart:async';
 
+import '../widgets/activity_dialog.dart';
+
+import '../notifications.dart';
+
 /// Home screen: shows every activity with total hours logged.
 class ActivityListScreen extends StatefulWidget {
   const ActivityListScreen({super.key});
@@ -31,6 +35,102 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  Future<void> _addActivity() async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => const ActivityNameDialog(title: 'New activity'),
+    );
+    if (name == null || name.isEmpty) return;
+    await AppDatabase.insertActivity(name);
+    await _load();
+  }
+
+  Future<void> _editActivity(Activity activity) async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => ActivityNameDialog(
+        initialName: activity.name,
+        title: 'Rename activity',
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    await AppDatabase.updateActivity(activity.id!, name);
+    await _load();
+  }
+
+  Future<void> _deleteActivity(Activity activity) async {
+    // Count sessions first so we can show the impact.
+    final sessions = await AppDatabase.getSessionsFor(activity.id!);
+    final total = await AppDatabase.totalDurationFor(activity.id!);
+    if (!mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete "${activity.name}"?'),
+        content: Text(
+          sessions.isEmpty
+              ? 'This activity has no logged sessions.'
+              : 'This will also delete ${sessions.length} '
+                    '${sessions.length == 1 ? "session" : "sessions"} '
+                    'totalling ${_formatDuration(total)}.\n\n'
+                    'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Was this the activity with the active session?
+    final running = await AppDatabase.getRunningSession();
+    final wasRunning = running?.activityId == activity.id;
+
+    await AppDatabase.deleteActivity(activity.id!);
+    if (wasRunning) AppNotifications.clear();
+    await _load();
+  }
+
+  /// Long-press menu (Edit / Delete).
+  Future<void> _showRowMenu(Activity activity) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Rename'),
+              onTap: () => Navigator.of(ctx).pop('edit'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete'),
+              onTap: () => Navigator.of(ctx).pop('delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == 'edit') {
+      await _editActivity(activity);
+    } else if (choice == 'delete') {
+      await _deleteActivity(activity);
+    }
   }
 
   Future<void> _load() async {
@@ -80,7 +180,16 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Life Tracker')),
+      appBar: AppBar(
+        title: const Text('Life Tracker'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'New activity',
+            onPressed: _addActivity,
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -132,6 +241,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
                       );
                       _load();
                     },
+                    onLongPress: () => _showRowMenu(a),
                   );
                 },
               ),
