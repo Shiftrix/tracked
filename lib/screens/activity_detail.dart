@@ -187,44 +187,57 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
           // Timer + today/total + Start/Stop button
           SliverFillRemaining(
             hasScrollBody: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24 + 128),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    running ? _formatClock(elapsed) : '00:00:00',
-                    style: TextStyle(
-                      fontSize: 56,
-                      fontWeight: FontWeight.w300,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                      color: running
-                          ? Colors.green
-                          : ActivityAppearance.color(
-                              widget.activity.colorIndex,
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Today: ${_formatTotal(liveToday)}  •  '
-                    'Total: ${_formatTotal(liveTotal)}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: running ? _stop : _start,
-                    icon: Icon(running ? Icons.stop : Icons.play_arrow),
-                    label: Text(running ? 'Stop' : 'Start'),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 48,
-                        vertical: 20,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    ActivityAppearance.color(widget.activity.colorIndex)
+                        .withValues(alpha: 0.15),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 24 + 128),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      running ? _formatClock(elapsed) : '00:00:00',
+                      style: TextStyle(
+                        fontSize: 56,
+                        fontWeight: FontWeight.w300,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                        color: running
+                            ? Colors.green
+                            : ActivityAppearance.color(
+                                widget.activity.colorIndex,
+                              ),
                       ),
-                      textStyle: const TextStyle(fontSize: 20),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'Today: ${_formatTotal(liveToday)}  •  '
+                      'Total: ${_formatTotal(liveTotal)}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      onPressed: running ? _stop : _start,
+                      icon: Icon(running ? Icons.stop : Icons.play_arrow),
+                      label: Text(running ? 'Stop' : 'Start'),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 48,
+                          vertical: 20,
+                        ),
+                        textStyle: const TextStyle(fontSize: 20),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -271,10 +284,42 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
           // Sessions list — this is the sliver that actually grows.
           if (_sessions.isEmpty)
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(child: Text('No completed sessions yet')),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 40,
+                  horizontal: 32,
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      ActivityAppearance.icon(widget.activity.iconIndex),
+                      size: 56,
+                      color: ActivityAppearance.color(
+                        widget.activity.colorIndex,
+                      ).withValues(alpha: 0.4),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No sessions yet',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Tap Start to log your first one',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           else

@@ -126,7 +126,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.edit),
-              title: const Text('Rename'),
+              title: const Text('Edit'),
               onTap: () => Navigator.of(ctx).pop('edit'),
             ),
             ListTile(
