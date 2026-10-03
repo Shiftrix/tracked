@@ -196,7 +196,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
               onRefresh: _load,
               child: ListView.separated(
                 itemCount: _activities.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, i) {
                   final a = _activities[i];
                   final total = _totals[a.id] ?? Duration.zero;

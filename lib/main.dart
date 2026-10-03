@@ -28,10 +28,16 @@ class LifeTrackerApp extends StatelessWidget {
     return MaterialApp(
       title: 'Life Tracker',
       themeMode: ThemeMode.dark,
+      theme: ThemeData(
+        colorSchemeSeed: Colors.indigo,
+        useMaterial3: true,
+        fontFamily: 'JetBrainsMono',
+      ),
       darkTheme: ThemeData(
         colorSchemeSeed: Colors.indigo,
         brightness: Brightness.dark,
         useMaterial3: true,
+        fontFamily: 'JetBrainsMono',
       ),
       home: const ActivityListScreen(),
     );
