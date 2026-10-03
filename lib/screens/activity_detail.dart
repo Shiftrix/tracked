@@ -6,6 +6,7 @@ import '../database.dart';
 import '../widgets/heatmap.dart';
 import 'year_view.dart';
 import '../notifications.dart';
+import '../theme/activity_appearance.dart';
 
 /// Detail screen for one activity: live timer, Start/Stop, recent sessions.
 class ActivityDetailScreen extends StatefulWidget {
@@ -138,7 +139,17 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.activity.name),
+        title: Row(
+          children: [
+            Icon(
+              ActivityAppearance.icon(widget.activity.iconIndex),
+              color: ActivityAppearance.color(widget.activity.colorIndex),
+              size: 22,
+            ),
+            const SizedBox(width: 8),
+            Text(widget.activity.name),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_view_month),
@@ -172,7 +183,11 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                       fontSize: 56,
                       fontWeight: FontWeight.w300,
                       fontFeatures: const [FontFeature.tabularFigures()],
-                      color: running ? Colors.green : Colors.grey,
+                      color: running
+                          ? Colors.green
+                          : ActivityAppearance.color(
+                              widget.activity.colorIndex,
+                            ),
                     ),
                   ),
                   const SizedBox(height: 8),

@@ -10,6 +10,8 @@ import '../widgets/activity_dialog.dart';
 
 import '../notifications.dart';
 
+import '../theme/activity_appearance.dart';
+
 /// Home screen: shows every activity with total hours logged.
 class ActivityListScreen extends StatefulWidget {
   const ActivityListScreen({super.key});
@@ -38,25 +40,36 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
   }
 
   Future<void> _addActivity() async {
-    final name = await showDialog<String>(
+    final result = await showDialog<ActivityDialogResult>(
       context: context,
-      builder: (_) => const ActivityNameDialog(title: 'New activity'),
+      builder: (_) => const ActivityDialog(title: 'New activity'),
     );
-    if (name == null || name.isEmpty) return;
-    await AppDatabase.insertActivity(name);
+    if (result == null || result.name.isEmpty) return;
+    await AppDatabase.insertActivity(
+      result.name,
+      colorIndex: result.colorIndex,
+      iconIndex: result.iconIndex,
+    );
     await _load();
   }
 
   Future<void> _editActivity(Activity activity) async {
-    final name = await showDialog<String>(
+    final result = await showDialog<ActivityDialogResult>(
       context: context,
-      builder: (_) => ActivityNameDialog(
+      builder: (_) => ActivityDialog(
         initialName: activity.name,
-        title: 'Rename activity',
+        initialColorIndex: activity.colorIndex,
+        initialIconIndex: activity.iconIndex,
+        title: 'Edit activity',
       ),
     );
-    if (name == null || name.isEmpty) return;
-    await AppDatabase.updateActivity(activity.id!, name);
+    if (result == null || result.name.isEmpty) return;
+    await AppDatabase.updateActivity(activity.id!, result.name);
+    await AppDatabase.updateActivityAppearance(
+      activity.id!,
+      colorIndex: result.colorIndex,
+      iconIndex: result.iconIndex,
+    );
     await _load();
   }
 
@@ -242,29 +255,20 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
                               decoration: BoxDecoration(
                                 color: isRunning
                                     ? Colors.green.withValues(alpha: 0.2)
-                                    : Theme.of(context).colorScheme.primary
-                                          .withValues(alpha: 0.15),
+                                    : ActivityAppearance.color(a.colorIndex)
+                                          .withValues(alpha: 0.18),
                                 shape: BoxShape.circle,
                               ),
                               alignment: Alignment.center,
-                              child: isRunning
-                                  ? const Icon(
-                                      Icons.play_arrow,
-                                      color: Colors.green,
-                                      size: 26,
-                                    )
-                                  : Text(
-                                      a.name.isNotEmpty
-                                          ? a.name[0].toUpperCase()
-                                          : '?',
-                                      style: TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w600,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                      ),
-                                    ),
+                              child: Icon(
+                                isRunning
+                                    ? Icons.play_arrow
+                                    : ActivityAppearance.icon(a.iconIndex),
+                                color: isRunning
+                                    ? Colors.green
+                                    : ActivityAppearance.color(a.colorIndex),
+                                size: 26,
+                              ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
