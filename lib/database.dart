@@ -6,13 +6,29 @@ import 'package:sqflite/sqflite.dart';
 class Activity {
   final int? id;
   final String name;
+  final int colorIndex;
+  final int iconIndex;
 
-  Activity({this.id, required this.name});
+  Activity({
+    this.id,
+    required this.name,
+    this.colorIndex = 0,
+    this.iconIndex = 23,
+  });
 
-  Map<String, dynamic> toMap() => {'id': id, 'name': name};
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'name': name,
+    'colorIndex': colorIndex,
+    'iconIndex': iconIndex,
+  };
 
-  factory Activity.fromMap(Map<String, dynamic> map) =>
-      Activity(id: map['id'] as int?, name: map['name'] as String);
+  factory Activity.fromMap(Map<String, dynamic> map) => Activity(
+    id: map['id'] as int?,
+    name: map['name'] as String,
+    colorIndex: (map['colorIndex'] as int?) ?? 0,
+    iconIndex: (map['iconIndex'] as int?) ?? 23,
+  );
 }
 
 /// A single row in the `sessions` table.
@@ -66,13 +82,15 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         // Activities: one row per thing you track.
         await db.execute('''
           CREATE TABLE activities (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL
+            name TEXT NOT NULL,
+            colorIndex INTEGER NOT NULL DEFAULT 0,
+            iconIndex INTEGER NOT NULL DEFAULT 23
           )
         ''');
 
@@ -89,10 +107,22 @@ class AppDatabase {
           )
         ''');
 
-        // Seed with the activities you mentioned.
-        final seed = ['Example'];
-        for (final name in seed) {
-          await db.insert('activities', {'name': name});
+        // One example activity for fresh installs.
+        await db.insert('activities', {
+          'name': 'Example',
+          'colorIndex': 0,
+          'iconIndex': 23,
+        });
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        // v1 → v2: added colorIndex and iconIndex columns.
+        if (oldVersion < 2) {
+          await db.execute(
+            'ALTER TABLE activities ADD COLUMN colorIndex INTEGER NOT NULL DEFAULT 0',
+          );
+          await db.execute(
+            'ALTER TABLE activities ADD COLUMN iconIndex INTEGER NOT NULL DEFAULT 23',
+          );
         }
       },
     );
@@ -126,10 +156,33 @@ class AppDatabase {
     return rows.map((r) => Activity.fromMap(r)).toList();
   }
 
-  /// Insert a new activity with the given name. Returns its new id.
-  static Future<int> insertActivity(String name) async {
+  /// Insert a new activity. Returns its new id.
+  static Future<int> insertActivity(
+    String name, {
+    int colorIndex = 0,
+    int iconIndex = 23,
+  }) async {
     final db = await instance;
-    return db.insert('activities', {'name': name.trim()});
+    return db.insert('activities', {
+      'name': name.trim(),
+      'colorIndex': colorIndex,
+      'iconIndex': iconIndex,
+    });
+  }
+
+  /// Update just the color and icon of an activity.
+  static Future<void> updateActivityAppearance(
+    int id, {
+    required int colorIndex,
+    required int iconIndex,
+  }) async {
+    final db = await instance;
+    await db.update(
+      'activities',
+      {'colorIndex': colorIndex, 'iconIndex': iconIndex},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   /// Rename an existing activity.
