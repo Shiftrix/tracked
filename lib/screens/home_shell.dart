@@ -15,11 +15,23 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  static const _screens = [
-    ActivityListScreen(),
-    TasksScreen(),
-    ProfileScreen(),
+  /// Key so we can call reload() on the profile screen when it becomes active.
+  final _profileKey = GlobalKey<ProfileScreenState>();
+
+  late final List<Widget> _screens = [
+    const ActivityListScreen(),
+    const TasksScreen(),
+    ProfileScreen(key: _profileKey),
   ];
+
+  void _onTabChanged(int newIndex) {
+    setState(() => _index = newIndex);
+
+    // When switching to the You tab, refresh XP and stats.
+    if (newIndex == 2) {
+      _profileKey.currentState?.reload();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +39,7 @@ class _HomeShellState extends State<HomeShell> {
       body: IndexedStack(index: _index, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: _onTabChanged,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.timer_outlined),
