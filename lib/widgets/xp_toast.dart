@@ -5,7 +5,13 @@ import 'package:flutter/material.dart';
 ///
 /// Usage:
 ///   showXpToast(context, amount: 50);
-void showXpToast(BuildContext context, {required int amount, Color? color}) {
+///   showXpToast(context, amount: 50, icon: Icons.local_fire_department);
+void showXpToast(
+  BuildContext context, {
+  required int amount,
+  Color? color,
+  IconData? icon,
+}) {
   if (amount <= 0) return;
 
   final overlay = Overlay.of(context, rootOverlay: true);
@@ -15,6 +21,7 @@ void showXpToast(BuildContext context, {required int amount, Color? color}) {
     builder: (context) => _XpToastOverlay(
       amount: amount,
       color: color,
+      icon: icon,
       onDone: () => entry.remove(),
     ),
   );
@@ -25,12 +32,14 @@ void showXpToast(BuildContext context, {required int amount, Color? color}) {
 class _XpToastOverlay extends StatefulWidget {
   final int amount;
   final Color? color;
+  final IconData? icon;
   final VoidCallback onDone;
 
   const _XpToastOverlay({
     required this.amount,
     required this.onDone,
     this.color,
+    this.icon,
   });
 
   @override
@@ -49,7 +58,6 @@ class _XpToastOverlayState extends State<_XpToastOverlay>
       duration: const Duration(milliseconds: 2200),
     );
 
-    // Slide in (0 → 0.15), hold (0.15 → 0.75), fade out (0.75 → 1.0).
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         widget.onDone();
@@ -79,7 +87,6 @@ class _XpToastOverlayState extends State<_XpToastOverlay>
           animation: _controller,
           builder: (context, child) {
             final t = _controller.value;
-
             final slide = t < 0.15 ? -20.0 * (1 - (t / 0.15)) : 0.0;
             final opacity = t > 0.75 ? 1.0 - ((t - 0.75) / 0.25) : 1.0;
 
@@ -115,7 +122,11 @@ class _XpToastOverlayState extends State<_XpToastOverlay>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.auto_awesome, size: 18, color: accent),
+                    Icon(
+                      widget.icon ?? Icons.auto_awesome,
+                      size: 18,
+                      color: accent,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       '+${widget.amount} XP',

@@ -100,15 +100,20 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
     final xpEarned = await AppDatabase.stopSession(_runningSessionId!);
     _ticker?.cancel();
-    await _loadAll(); // refresh totals and session list
+    await _loadAll();
     AppNotifications.clear();
 
     if (!mounted) return;
     if (xpEarned > 0) {
+      // Was this the first completed session of the day?
+      final todayCount = await AppDatabase.sessionsStartedToday();
+      final isFirstOfDay = todayCount == 1;
+
       showXpToast(
         context,
         amount: xpEarned,
         color: ActivityAppearance.color(widget.activity.colorIndex),
+        icon: isFirstOfDay ? Icons.local_fire_department : null,
       );
     }
   }

@@ -193,6 +193,21 @@ class AppDatabase {
     return xp;
   }
 
+  /// How many completed sessions started today (any activity)?
+  static Future<int> sessionsStartedToday() async {
+    final db = await instance;
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayEnd = todayStart.add(const Duration(days: 1));
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS c FROM sessions '
+      'WHERE endedAt IS NOT NULL '
+      'AND startedAt >= ? AND startedAt < ?',
+      [todayStart.millisecondsSinceEpoch, todayEnd.millisecondsSinceEpoch],
+    );
+    return (rows.first['c'] as int?) ?? 0;
+  }
+
   /// Compute XP for a session. Duplicated logic from lib/xp.dart to
   /// keep the database layer free of UI imports.
   static int _xpForSession(int durationMs, double multiplier) {
