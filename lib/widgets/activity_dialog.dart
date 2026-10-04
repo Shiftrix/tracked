@@ -7,20 +7,21 @@ class ActivityDialogResult {
   final String name;
   final int colorIndex;
   final int iconIndex;
+  final double multiplier;
 
   const ActivityDialogResult({
     required this.name,
     required this.colorIndex,
     required this.iconIndex,
+    required this.multiplier,
   });
 }
 
-/// A dialog for creating or editing an activity. Includes a live preview,
-/// a color picker, and an icon picker.
 class ActivityDialog extends StatefulWidget {
   final String? initialName;
   final int? initialColorIndex;
   final int? initialIconIndex;
+  final double? initialMultiplier;
   final String title;
 
   const ActivityDialog({
@@ -28,6 +29,7 @@ class ActivityDialog extends StatefulWidget {
     this.initialName,
     this.initialColorIndex,
     this.initialIconIndex,
+    this.initialMultiplier,
     required this.title,
   });
 
@@ -39,13 +41,14 @@ class _ActivityDialogState extends State<ActivityDialog> {
   late final TextEditingController _controller;
   late int _colorIndex;
   late int _iconIndex;
-
+  late double _multiplier;
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialName ?? '');
     _colorIndex = widget.initialColorIndex ?? 0;
     _iconIndex = widget.initialIconIndex ?? 23;
+    _multiplier = widget.initialMultiplier ?? 1.0;
   }
 
   @override
@@ -62,6 +65,7 @@ class _ActivityDialogState extends State<ActivityDialog> {
         name: text,
         colorIndex: _colorIndex,
         iconIndex: _iconIndex,
+        multiplier: _multiplier,
       ),
     );
   }
@@ -186,6 +190,30 @@ class _ActivityDialogState extends State<ActivityDialog> {
                     ),
                 ],
               ),
+              const SizedBox(height: 16),
+              Text(
+                'XP multiplier',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Higher = more XP per minute. 1.0 is the baseline.',
+                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final m in const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0])
+                    _MultiplierChip(
+                      multiplier: m,
+                      selected: _multiplier == m,
+                      accent: selectedColor,
+                      onTap: () => setState(() => _multiplier = m),
+                    ),
+                ],
+              ),
               const SizedBox(height: 8),
             ],
           ),
@@ -273,6 +301,48 @@ class _IconSwatch extends StatelessWidget {
           color: selected
               ? color
               : Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+class _MultiplierChip extends StatelessWidget {
+  final double multiplier;
+  final bool selected;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _MultiplierChip({
+    required this.multiplier,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+  });
+
+  String get _label => '${multiplier.toString()}x';
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent.withValues(alpha: 0.25)
+              : scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(20),
+          border: selected ? Border.all(color: accent, width: 1.5) : null,
+        ),
+        child: Text(
+          _label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            color: selected ? accent : scheme.onSurfaceVariant,
+          ),
         ),
       ),
     );

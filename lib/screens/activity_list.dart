@@ -49,6 +49,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
       result.name,
       colorIndex: result.colorIndex,
       iconIndex: result.iconIndex,
+      multiplier: result.multiplier,
     );
     await _load();
   }
@@ -60,6 +61,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
         initialName: activity.name,
         initialColorIndex: activity.colorIndex,
         initialIconIndex: activity.iconIndex,
+        initialMultiplier: activity.multiplier,
         title: 'Edit activity',
       ),
     );
@@ -70,6 +72,7 @@ class _ActivityListScreenState extends State<ActivityListScreen> {
       colorIndex: result.colorIndex,
       iconIndex: result.iconIndex,
     );
+    await AppDatabase.updateActivityMultiplier(activity.id!, result.multiplier);
     await _load();
   }
 
