@@ -5,6 +5,8 @@ import '../theme/activity_appearance.dart';
 import '../widgets/profile_edit_dialog.dart';
 import '../database.dart';
 import '../xp.dart';
+import '../widgets/heatmap.dart';
+import 'year_view.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -22,6 +24,7 @@ class ProfileScreenState extends State<ProfileScreen> {
   int _longestStreak = 0;
   bool _doneToday = false;
   bool _loading = true;
+  Map<DateTime, Duration> _yearlyTotals = {};
 
   @override
   void initState() {
@@ -42,6 +45,15 @@ class ProfileScreenState extends State<ProfileScreen> {
     final streak = await AppDatabase.currentStreak();
     final longest = await AppDatabase.longestStreak();
 
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd = DateTime(now.year, now.month + 1, 1);
+    final monthly = await AppDatabase.getDailyTotalsFor(
+      null,
+      monthStart,
+      monthEnd,
+    );
+
     if (!mounted) return;
     setState(() {
       _name = profile.name;
@@ -51,6 +63,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       _currentStreak = streak.current;
       _doneToday = streak.doneToday;
       _longestStreak = longest;
+      _yearlyTotals = monthly;
       _loading = false;
     });
   }
@@ -157,6 +170,39 @@ class ProfileScreenState extends State<ProfileScreen> {
             longest: _longestStreak,
             doneToday: _doneToday,
             accent: color,
+          ),
+          const SizedBox(height: 32),
+
+          // Year heatmap section
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${DateTime.now().year}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              TextButton.icon(
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: const Text('All years'),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          YearViewScreen(overrideColorIndex: _avatarColor),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          MonthHeatmap(
+            month: DateTime.now(),
+            dailyTotals: _yearlyTotals,
+            overrideColor: color,
           ),
         ],
       ),

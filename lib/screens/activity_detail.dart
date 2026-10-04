@@ -275,6 +275,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
               child: MonthHeatmap(
                 month: DateTime.now(),
                 dailyTotals: _dailyTotals,
+                overrideColor: ActivityAppearance.color(
+                  widget.activity.colorIndex,
+                ),
               ),
             ),
           ),
