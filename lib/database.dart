@@ -155,23 +155,22 @@ class AppDatabase {
   }
 
   /// Mark a session as finished by writing its end time AND the XP earned.
-  static Future<void> stopSession(int sessionId) async {
+  /// Returns the XP earned (0 if the session wasn't found).
+  static Future<int> stopSession(int sessionId) async {
     final db = await instance;
 
-    // Look up the session to compute its duration.
     final rows = await db.query(
       'sessions',
       where: 'id = ?',
       whereArgs: [sessionId],
       limit: 1,
     );
-    if (rows.isEmpty) return;
+    if (rows.isEmpty) return 0;
 
     final session = Session.fromMap(rows.first);
     final endedAt = DateTime.now();
     final durationMs = endedAt.difference(session.startedAt).inMilliseconds;
 
-    // Look up the activity's multiplier.
     final actRows = await db.query(
       'activities',
       where: 'id = ?',
@@ -182,7 +181,6 @@ class AppDatabase {
         ? 1.0
         : (actRows.first['multiplier'] as num?)?.toDouble() ?? 1.0;
 
-    // Compute XP and write both fields.
     final xp = _xpForSession(durationMs, multiplier);
 
     await db.update(
@@ -191,6 +189,8 @@ class AppDatabase {
       where: 'id = ?',
       whereArgs: [sessionId],
     );
+
+    return xp;
   }
 
   /// Compute XP for a session. Duplicated logic from lib/xp.dart to

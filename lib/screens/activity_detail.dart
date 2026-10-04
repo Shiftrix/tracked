@@ -7,6 +7,7 @@ import '../widgets/heatmap.dart';
 import 'year_view.dart';
 import '../notifications.dart';
 import '../theme/activity_appearance.dart';
+import '../widgets/xp_toast.dart';
 
 /// Detail screen for one activity: live timer, Start/Stop, recent sessions.
 class ActivityDetailScreen extends StatefulWidget {
@@ -96,10 +97,20 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
   Future<void> _stop() async {
     if (_runningSessionId == null) return;
-    await AppDatabase.stopSession(_runningSessionId!);
+
+    final xpEarned = await AppDatabase.stopSession(_runningSessionId!);
     _ticker?.cancel();
     await _loadAll(); // refresh totals and session list
     AppNotifications.clear();
+
+    if (!mounted) return;
+    if (xpEarned > 0) {
+      showXpToast(
+        context,
+        amount: xpEarned,
+        color: ActivityAppearance.color(widget.activity.colorIndex),
+      );
+    }
   }
 
   /// Format a Duration as HH:MM:SS, for the live timer.
@@ -329,6 +340,11 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                 final s = _sessions[i];
                 final dur = s.duration;
                 final started = s.startedAt;
+                final sessionColor = ActivityAppearance.color(
+                  widget.activity.colorIndex,
+                );
+                final showXp = s.xpEarned > 0;
+
                 return ListTile(
                   dense: true,
                   title: Text(
@@ -336,8 +352,23 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                     '${started.hour.toString().padLeft(2, '0')}:'
                     '${started.minute.toString().padLeft(2, '0')}',
                   ),
-                  trailing: Text(
-                    dur == null ? 'running' : _formatSessionDuration(dur),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        dur == null ? 'running' : _formatSessionDuration(dur),
+                      ),
+                      if (showXp) ...[
+                        const SizedBox(width: 10),
+                        Text(
+                          '(+${s.xpEarned} XP)',
+                          style: TextStyle(
+                            color: sessionColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 );
               },
