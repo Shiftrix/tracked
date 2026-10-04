@@ -188,10 +188,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => YearViewScreen(
-                    activity: widget.activity,
-                    year: DateTime.now().year,
-                  ),
+                  builder: (_) => YearViewScreen(activity: widget.activity),
                 ),
               );
             },

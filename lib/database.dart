@@ -316,6 +316,20 @@ class AppDatabase {
     return days;
   }
 
+  /// Earliest year with any completed session. Null if none.
+  /// If [activityId] is provided, restricted to that activity.
+  static Future<int?> earliestSessionYear(int? activityId) async {
+    final db = await instance;
+    final query = activityId == null
+        ? 'SELECT MIN(startedAt) AS first FROM sessions WHERE endedAt IS NOT NULL'
+        : 'SELECT MIN(startedAt) AS first FROM sessions WHERE endedAt IS NOT NULL AND activityId = ?';
+    final args = activityId == null ? <Object>[] : [activityId];
+    final rows = await db.rawQuery(query, args);
+    final first = rows.first['first'] as int?;
+    if (first == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(first).year;
+  }
+
   /// Current streak. Today counts only if there's a session today.
   /// Returns (currentStreak, doneToday).
   static Future<({int current, bool doneToday})> currentStreak() async {
@@ -466,22 +480,35 @@ class AppDatabase {
   /// [to] (exclusive). Returns a map keyed by local midnight of each day.
   /// Only completed sessions are counted.
   static Future<Map<DateTime, Duration>> getDailyTotalsFor(
-    int activityId,
+    int? activityId,
     DateTime from,
     DateTime to,
   ) async {
     final db = await instance;
-    final rows = await db.rawQuery(
-      '''
-      SELECT startedAt, endedAt
-      FROM sessions
-      WHERE activityId = ?
-        AND endedAt IS NOT NULL
-        AND startedAt >= ?
-        AND startedAt < ?
-    ''',
-      [activityId, from.millisecondsSinceEpoch, to.millisecondsSinceEpoch],
-    );
+
+    // Null activityId = aggregate across all activities.
+    final query = activityId == null
+        ? '''
+          SELECT startedAt, endedAt
+          FROM sessions
+          WHERE endedAt IS NOT NULL
+            AND startedAt >= ?
+            AND startedAt < ?
+        '''
+        : '''
+          SELECT startedAt, endedAt
+          FROM sessions
+          WHERE activityId = ?
+            AND endedAt IS NOT NULL
+            AND startedAt >= ?
+            AND startedAt < ?
+        ''';
+
+    final args = activityId == null
+        ? [from.millisecondsSinceEpoch, to.millisecondsSinceEpoch]
+        : [activityId, from.millisecondsSinceEpoch, to.millisecondsSinceEpoch];
+
+    final rows = await db.rawQuery(query, args);
 
     final result = <DateTime, Duration>{};
     for (final row in rows) {

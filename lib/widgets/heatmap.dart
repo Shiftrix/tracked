@@ -8,10 +8,13 @@ class MonthHeatmap extends StatelessWidget {
   /// Per-day totals. Keys should be local midnight of each day.
   final Map<DateTime, Duration> dailyTotals;
 
+  final Color? overrideColor;
+
   const MonthHeatmap({
     super.key,
     required this.month,
     required this.dailyTotals,
+    this.overrideColor,
   });
 
   /// Fixed thresholds — see our design discussion.
@@ -27,8 +30,12 @@ class MonthHeatmap extends StatelessWidget {
   }
 
   /// Public lookup so the legend can render matching colors.
-  static Color colorForBucket(int bucket, ColorScheme scheme) {
-    final base = scheme.primary;
+  static Color colorForBucket(
+    int bucket,
+    ColorScheme scheme, {
+    Color? overrideColor,
+  }) {
+    final base = overrideColor ?? scheme.primary;
     switch (bucket) {
       case 0:
         return scheme.surfaceContainerHighest.withValues(alpha: 0.4);
@@ -90,7 +97,11 @@ class MonthHeatmap extends StatelessWidget {
             final date = DateTime(month.year, month.month, dayNumber);
             final total = dailyTotals[date] ?? Duration.zero;
             final bucket = _bucketFor(total);
-            final color = MonthHeatmap.colorForBucket(bucket, scheme);
+            final color = MonthHeatmap.colorForBucket(
+              bucket,
+              scheme,
+              overrideColor: overrideColor,
+            );
 
             return GestureDetector(
               onTap: () {
@@ -149,7 +160,11 @@ class MonthHeatmap extends StatelessWidget {
                 height: 12,
                 margin: const EdgeInsets.symmetric(horizontal: 1),
                 decoration: BoxDecoration(
-                  color: MonthHeatmap.colorForBucket(b, scheme),
+                  color: MonthHeatmap.colorForBucket(
+                    b,
+                    scheme,
+                    overrideColor: overrideColor,
+                  ),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
