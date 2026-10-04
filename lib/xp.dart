@@ -57,4 +57,22 @@ class Xp {
     final minutes = durationMs / 60000.0;
     return (minutes * multiplier).floor();
   }
+
+  /// Human-friendly big-duration string.
+  /// Examples:
+  ///   0s -> "0m"
+  ///   45m -> "45m"
+  ///   2h 15m -> "2h 15m"
+  ///   1d 4h 30m -> "1d 4h 30m"
+  ///   12d 7h 12m -> "12d 7h 12m"
+  static String formatBigDuration(Duration d) {
+    if (d.inSeconds < 60) return '${d.inSeconds}s';
+    final days = d.inDays;
+    final hours = d.inHours.remainder(24);
+    final minutes = d.inMinutes.remainder(60);
+
+    if (days > 0) return '${days}d ${hours}h ${minutes}m';
+    if (hours > 0) return '${hours}h ${minutes}m';
+    return '${minutes}m';
+  }
 }

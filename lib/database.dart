@@ -273,6 +273,77 @@ class AppDatabase {
     return (rows.first['total'] as int?) ?? 0;
   }
 
+  /// Sum of every completed session's duration, across all activities.
+  static Future<Duration> totalTimeAllActivities() async {
+    final db = await instance;
+    final rows = await db.rawQuery(
+      'SELECT SUM(endedAt - startedAt) AS totalMs FROM sessions '
+      'WHERE endedAt IS NOT NULL',
+    );
+    final totalMs = rows.first['totalMs'] as int?;
+    if (totalMs == null) return Duration.zero;
+    return Duration(milliseconds: totalMs);
+  }
+
+  /// Set of calendar days (midnight, local) that have at least one
+  /// completed session. Used for streak calculations.
+  static Future<Set<DateTime>> daysWithSessions() async {
+    final db = await instance;
+    final rows = await db.rawQuery(
+      'SELECT DISTINCT startedAt FROM sessions WHERE endedAt IS NOT NULL',
+    );
+    final days = <DateTime>{};
+    for (final row in rows) {
+      final ms = row['startedAt'] as int;
+      final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+      days.add(DateTime(dt.year, dt.month, dt.day));
+    }
+    return days;
+  }
+
+  /// Current streak. Today counts only if there's a session today.
+  /// Returns (currentStreak, doneToday).
+  static Future<({int current, bool doneToday})> currentStreak() async {
+    final days = await daysWithSessions();
+    if (days.isEmpty) return (current: 0, doneToday: false);
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    final doneToday = days.contains(today);
+
+    // Start from today if done, otherwise yesterday.
+    DateTime cursor = doneToday ? today : yesterday;
+    int streak = 0;
+    while (days.contains(cursor)) {
+      streak++;
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+    return (current: streak, doneToday: doneToday);
+  }
+
+  /// Longest streak ever.
+  static Future<int> longestStreak() async {
+    final days = await daysWithSessions();
+    if (days.isEmpty) return 0;
+
+    final sorted = days.toList()..sort();
+    int longest = 1;
+    int run = 1;
+    for (int i = 1; i < sorted.length; i++) {
+      final diff = sorted[i].difference(sorted[i - 1]).inDays;
+      if (diff == 1) {
+        run++;
+        if (run > longest) longest = run;
+      } else if (diff > 1) {
+        run = 1;
+      }
+      // diff == 0 can't happen (set, dedupe)
+    }
+    return longest;
+  }
+
   /// Total XP earned on a specific activity.
   static Future<int> xpForActivity(int activityId) async {
     final db = await instance;
