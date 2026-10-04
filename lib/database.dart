@@ -8,12 +8,14 @@ class Activity {
   final String name;
   final int colorIndex;
   final int iconIndex;
+  final double multiplier;
 
   Activity({
     this.id,
     required this.name,
     this.colorIndex = 0,
     this.iconIndex = 23,
+    this.multiplier = 1.0,
   });
 
   Map<String, dynamic> toMap() => {
@@ -21,6 +23,7 @@ class Activity {
     'name': name,
     'colorIndex': colorIndex,
     'iconIndex': iconIndex,
+    'multiplier': multiplier,
   };
 
   factory Activity.fromMap(Map<String, dynamic> map) => Activity(
@@ -28,6 +31,7 @@ class Activity {
     name: map['name'] as String,
     colorIndex: (map['colorIndex'] as int?) ?? 0,
     iconIndex: (map['iconIndex'] as int?) ?? 23,
+    multiplier: (map['multiplier'] as num?)?.toDouble() ?? 1.0,
   );
 }
 
@@ -38,22 +42,26 @@ class Session {
   final int activityId;
   final DateTime startedAt;
   final DateTime? endedAt; // null means "still running"
+  final int xpEarned;
 
   Session({
     this.id,
     required this.activityId,
     required this.startedAt,
     this.endedAt,
+    this.xpEarned = 0,
   });
 
   /// Duration of this session. If it's still running, returns null.
-  Duration? get duration => endedAt?.difference(startedAt);
+  Duration? get duration =>
+      endedAt == null ? null : endedAt!.difference(startedAt);
 
   Map<String, dynamic> toMap() => {
     'id': id,
     'activityId': activityId,
     'startedAt': startedAt.millisecondsSinceEpoch,
     'endedAt': endedAt?.millisecondsSinceEpoch,
+    'xpEarned': xpEarned,
   };
 
   factory Session.fromMap(Map<String, dynamic> map) => Session(
@@ -63,6 +71,7 @@ class Session {
     endedAt: map['endedAt'] == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(map['endedAt'] as int),
+    xpEarned: (map['xpEarned'] as int?) ?? 0,
   );
 }
 
@@ -82,36 +91,34 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
-        // Activities: one row per thing you track.
         await db.execute('''
           CREATE TABLE activities (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             colorIndex INTEGER NOT NULL DEFAULT 0,
-            iconIndex INTEGER NOT NULL DEFAULT 23
+            iconIndex INTEGER NOT NULL DEFAULT 23,
+            multiplier REAL NOT NULL DEFAULT 1.0
           )
         ''');
 
-        // Sessions: one row per start/stop cycle.
-        // startedAt / endedAt are stored as milliseconds since 1970 (int),
-        // which makes date math and sorting trivial.
         await db.execute('''
           CREATE TABLE sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             activityId INTEGER NOT NULL,
             startedAt INTEGER NOT NULL,
             endedAt INTEGER,
+            xpEarned INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (activityId) REFERENCES activities (id)
           )
         ''');
 
-        // One example activity for fresh installs.
         await db.insert('activities', {
           'name': 'Example',
           'colorIndex': 0,
           'iconIndex': 23,
+          'multiplier': 1.0,
         });
       },
       onUpgrade: (db, oldVersion, newVersion) async {
@@ -122,6 +129,15 @@ class AppDatabase {
           );
           await db.execute(
             'ALTER TABLE activities ADD COLUMN iconIndex INTEGER NOT NULL DEFAULT 23',
+          );
+        }
+        // v2 → v3: added multiplier to activities, xpEarned to sessions.
+        if (oldVersion < 3) {
+          await db.execute(
+            'ALTER TABLE activities ADD COLUMN multiplier REAL NOT NULL DEFAULT 1.0',
+          );
+          await db.execute(
+            'ALTER TABLE sessions ADD COLUMN xpEarned INTEGER NOT NULL DEFAULT 0',
           );
         }
       },
@@ -138,15 +154,50 @@ class AppDatabase {
     });
   }
 
-  /// Mark a session as finished by writing its end time.
+  /// Mark a session as finished by writing its end time AND the XP earned.
   static Future<void> stopSession(int sessionId) async {
     final db = await instance;
+
+    // Look up the session to compute its duration.
+    final rows = await db.query(
+      'sessions',
+      where: 'id = ?',
+      whereArgs: [sessionId],
+      limit: 1,
+    );
+    if (rows.isEmpty) return;
+
+    final session = Session.fromMap(rows.first);
+    final endedAt = DateTime.now();
+    final durationMs = endedAt.difference(session.startedAt).inMilliseconds;
+
+    // Look up the activity's multiplier.
+    final actRows = await db.query(
+      'activities',
+      where: 'id = ?',
+      whereArgs: [session.activityId],
+      limit: 1,
+    );
+    final multiplier = actRows.isEmpty
+        ? 1.0
+        : (actRows.first['multiplier'] as num?)?.toDouble() ?? 1.0;
+
+    // Compute XP and write both fields.
+    final xp = _xpForSession(durationMs, multiplier);
+
     await db.update(
       'sessions',
-      {'endedAt': DateTime.now().millisecondsSinceEpoch},
+      {'endedAt': endedAt.millisecondsSinceEpoch, 'xpEarned': xp},
       where: 'id = ?',
       whereArgs: [sessionId],
     );
+  }
+
+  /// Compute XP for a session. Duplicated logic from lib/xp.dart to
+  /// keep the database layer free of UI imports.
+  static int _xpForSession(int durationMs, double multiplier) {
+    final minutes = durationMs / 60000.0;
+    return (minutes * multiplier).floor();
   }
 
   /// Fetch all activities (for the list screen later).
@@ -161,12 +212,14 @@ class AppDatabase {
     String name, {
     int colorIndex = 0,
     int iconIndex = 23,
+    double multiplier = 1.0,
   }) async {
     final db = await instance;
     return db.insert('activities', {
       'name': name.trim(),
       'colorIndex': colorIndex,
       'iconIndex': iconIndex,
+      'multiplier': multiplier,
     });
   }
 
@@ -209,6 +262,40 @@ class AppDatabase {
       await txn.delete('activities', where: 'id = ?', whereArgs: [id]);
       return deleted;
     });
+  }
+
+  /// Global XP earned across all sessions.
+  static Future<int> totalXp() async {
+    final db = await instance;
+    final rows = await db.rawQuery(
+      'SELECT SUM(xpEarned) AS total FROM sessions WHERE endedAt IS NOT NULL',
+    );
+    return (rows.first['total'] as int?) ?? 0;
+  }
+
+  /// Total XP earned on a specific activity.
+  static Future<int> xpForActivity(int activityId) async {
+    final db = await instance;
+    final rows = await db.rawQuery(
+      'SELECT SUM(xpEarned) AS total FROM sessions '
+      'WHERE activityId = ? AND endedAt IS NOT NULL',
+      [activityId],
+    );
+    return (rows.first['total'] as int?) ?? 0;
+  }
+
+  /// Update an activity's XP multiplier.
+  static Future<void> updateActivityMultiplier(
+    int id,
+    double multiplier,
+  ) async {
+    final db = await instance;
+    await db.update(
+      'activities',
+      {'multiplier': multiplier},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   /// Total time spent on an activity, summed across all completed sessions.
