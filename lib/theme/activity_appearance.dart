@@ -54,8 +54,9 @@ class ActivityAppearance {
   /// Used when creating a new activity so the icon isn't always star.
   static int suggestIcon(String name) {
     final n = name.toLowerCase();
-    if (n.contains('gym') || n.contains('workout') || n.contains('exercise'))
+    if (n.contains('gym') || n.contains('workout') || n.contains('exercise')) {
       return 0;
+    }
     if (n.contains('gam')) return 1;
     if (n.contains('edit')) return 2;
     if (n.contains('music')) return 3;

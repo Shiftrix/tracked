@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'database.dart';
-import 'screens/activity_list.dart';
+import 'screens/home_shell.dart';
 import 'notifications.dart';
 
 void main() async {
@@ -39,7 +39,7 @@ class LifeTrackerApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'JetBrainsMono',
       ),
-      home: const ActivityListScreen(),
+      home: const HomeShell(),
     );
   }
 }
