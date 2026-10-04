@@ -10,11 +10,15 @@ class MonthHeatmap extends StatelessWidget {
 
   final Color? overrideColor;
 
+  /// Optional: per-day XP. If provided, shown in the snackbar.
+  final Map<DateTime, int>? dailyXp;
+
   const MonthHeatmap({
     super.key,
     required this.month,
     required this.dailyTotals,
     this.overrideColor,
+    this.dailyXp,
   });
 
   /// Fixed thresholds — see our design discussion.
@@ -108,13 +112,16 @@ class MonthHeatmap extends StatelessWidget {
                 final String text;
                 if (total.inSeconds == 0) {
                   text = 'No time on $dayNumber/${month.month}';
-                } else if (total.inMinutes == 0) {
-                  text = '$dayNumber/${month.month}: ${total.inSeconds}s';
                 } else {
-                  text =
-                      '$dayNumber/${month.month}: ${total.inHours}h '
-                      '${total.inMinutes.remainder(60)}m '
-                      '${total.inSeconds.remainder(60)}s';
+                  final xp = dailyXp?[date] ?? 0;
+                  final dur = total.inHours > 0
+                      ? '${total.inHours}h ${total.inMinutes.remainder(60)}m'
+                      : total.inMinutes > 0
+                      ? '${total.inMinutes}m ${total.inSeconds.remainder(60)}s'
+                      : '${total.inSeconds}s';
+                  text = xp > 0
+                      ? '$dayNumber/${month.month}: $dur  (+$xp XP)'
+                      : '$dayNumber/${month.month}: $dur';
                 }
                 ScaffoldMessenger.of(context)
                   ..hideCurrentSnackBar()

@@ -32,6 +32,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   Duration _total = Duration.zero;
   Duration _todayTotal = Duration.zero;
   Map<DateTime, Duration> _dailyTotals = {};
+  Map<DateTime, int> _dailyXp = {};
 
   @override
   void initState() {
@@ -62,6 +63,11 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
       monthStart,
       monthEnd,
     );
+    final dailyXp = await AppDatabase.xpPerDayFor(
+      widget.activity.id!,
+      monthStart,
+      monthEnd,
+    );
 
     if (!mounted) return;
     setState(() {
@@ -71,6 +77,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
       _total = total;
       _todayTotal = today;
       _dailyTotals = daily;
+      _dailyXp = dailyXp;
     });
     _manageTicker();
   }
@@ -278,6 +285,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                 overrideColor: ActivityAppearance.color(
                   widget.activity.colorIndex,
                 ),
+                dailyXp: _dailyXp,
               ),
             ),
           ),

@@ -442,6 +442,64 @@ class AppDatabase {
     return Duration(milliseconds: totalMs);
   }
 
+  /// Total XP earned on a specific calendar day for a specific activity.
+  /// If [activityId] is null, aggregates all activities.
+  static Future<int> xpForDay(int? activityId, DateTime day) async {
+    final dayStart = DateTime(day.year, day.month, day.day);
+    final dayEnd = dayStart.add(const Duration(days: 1));
+    final db = await instance;
+
+    final query = activityId == null
+        ? 'SELECT SUM(xpEarned) AS total FROM sessions '
+              'WHERE endedAt IS NOT NULL AND startedAt >= ? AND startedAt < ?'
+        : 'SELECT SUM(xpEarned) AS total FROM sessions '
+              'WHERE activityId = ? AND endedAt IS NOT NULL '
+              'AND startedAt >= ? AND startedAt < ?';
+
+    final args = activityId == null
+        ? [dayStart.millisecondsSinceEpoch, dayEnd.millisecondsSinceEpoch]
+        : [
+            activityId,
+            dayStart.millisecondsSinceEpoch,
+            dayEnd.millisecondsSinceEpoch,
+          ];
+
+    final rows = await db.rawQuery(query, args);
+    return (rows.first['total'] as int?) ?? 0;
+  }
+
+  /// Per-day XP for a month, for a specific activity.
+  /// Per-day XP for a range of dates, for a specific activity.
+  /// If [activityId] is null, aggregates all activities.
+  static Future<Map<DateTime, int>> xpPerDayFor(
+    int? activityId,
+    DateTime from,
+    DateTime to,
+  ) async {
+    final db = await instance;
+    final query = activityId == null
+        ? 'SELECT startedAt, xpEarned FROM sessions '
+              'WHERE endedAt IS NOT NULL AND startedAt >= ? AND startedAt < ?'
+        : 'SELECT startedAt, xpEarned FROM sessions '
+              'WHERE activityId = ? AND endedAt IS NOT NULL '
+              'AND startedAt >= ? AND startedAt < ?';
+
+    final args = activityId == null
+        ? [from.millisecondsSinceEpoch, to.millisecondsSinceEpoch]
+        : [activityId, from.millisecondsSinceEpoch, to.millisecondsSinceEpoch];
+
+    final rows = await db.rawQuery(query, args);
+    final result = <DateTime, int>{};
+    for (final row in rows) {
+      final ms = row['startedAt'] as int;
+      final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+      final day = DateTime(dt.year, dt.month, dt.day);
+      final xp = (row['xpEarned'] as int?) ?? 0;
+      result[day] = (result[day] ?? 0) + xp;
+    }
+    return result;
+  }
+
   /// Find any session that's still running (endedAt is null).
   /// Used to recover if the app was killed mid-timer.
   static Future<Session?> getRunningSession() async {
