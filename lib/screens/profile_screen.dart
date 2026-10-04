@@ -93,6 +93,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('You'),
+        backgroundColor: color.withValues(alpha: 0.15),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
@@ -101,110 +102,123 @@ class ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          // Avatar
-          Center(
-            child: GestureDetector(
-              onTap: _editProfile,
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  _name.isEmpty ? '?' : _name[0].toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 52,
-                    fontWeight: FontWeight.w600,
-                    color: color,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [color.withValues(alpha: 0.15), Colors.transparent],
+            stops: const [0.0, 0.4],
+          ),
+        ),
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            // Avatar
+            Center(
+              child: GestureDetector(
+                onTap: _editProfile,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _name.isEmpty ? '?' : _name[0].toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 52,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Name
-          Center(
-            child: Text(
-              _name,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: Text(
-              'Tap to edit',
-              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
-            ),
-          ),
-          const SizedBox(height: 40),
-
-          _XpBar(totalXp: _totalXp, fillColor: color),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              '${Xp.xpIntoLevel(_totalXp)} / ${Xp.xpForNextLevel(_totalXp)} XP',
-              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // Total time card
-          _InfoCard(
-            icon: Icons.schedule,
-            accent: color,
-            title: 'Total time tracked',
-            value: Xp.formatBigDuration(_totalTime),
-          ),
-          const SizedBox(height: 12),
-
-          // Streak card
-          _StreakCard(
-            current: _currentStreak,
-            longest: _longestStreak,
-            doneToday: _doneToday,
-            accent: color,
-          ),
-          const SizedBox(height: 32),
-
-          // Year heatmap section
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${DateTime.now().year}',
+            // Name
+            Center(
+              child: Text(
+                _name,
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 24,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              TextButton.icon(
-                icon: const Icon(Icons.open_in_new, size: 16),
-                label: const Text('All years'),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          YearViewScreen(overrideColorIndex: _avatarColor),
-                    ),
-                  );
-                },
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                'Tap to edit',
+                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          MonthHeatmap(
-            month: DateTime.now(),
-            dailyTotals: _yearlyTotals,
-            overrideColor: color,
-          ),
-        ],
+            ),
+            const SizedBox(height: 40),
+
+            _XpBar(totalXp: _totalXp, fillColor: color),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                '${Xp.xpIntoLevel(_totalXp)} / ${Xp.xpForNextLevel(_totalXp)} XP',
+                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Total time card
+            _InfoCard(
+              icon: Icons.schedule,
+              accent: color,
+              title: 'Total time tracked',
+              value: Xp.formatBigDuration(_totalTime),
+            ),
+            const SizedBox(height: 12),
+
+            // Streak card
+            _StreakCard(
+              current: _currentStreak,
+              longest: _longestStreak,
+              doneToday: _doneToday,
+              accent: color,
+            ),
+            const SizedBox(height: 32),
+
+            // Year heatmap section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${DateTime.now().year}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: const Text('All years'),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            YearViewScreen(overrideColorIndex: _avatarColor),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            MonthHeatmap(
+              month: DateTime.now(),
+              dailyTotals: _yearlyTotals,
+              overrideColor: color,
+            ),
+          ],
+        ),
       ),
     );
   }
