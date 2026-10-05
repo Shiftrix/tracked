@@ -139,6 +139,37 @@ class AppDatabase {
           await db.execute(
             'ALTER TABLE sessions ADD COLUMN xpEarned INTEGER NOT NULL DEFAULT 0',
           );
+          // Retroactively compute XP for every existing completed session.
+          final sessions = await db.query(
+            'sessions',
+            where: 'endedAt IS NOT NULL',
+          );
+          for (final row in sessions) {
+            final startedAt = row['startedAt'] as int;
+            final endedAt = row['endedAt'] as int;
+            final activityId = row['activityId'] as int;
+            final durationMs = endedAt - startedAt;
+
+            final actRows = await db.query(
+              'activities',
+              where: 'id = ?',
+              whereArgs: [activityId],
+              limit: 1,
+            );
+            final multiplier = actRows.isEmpty
+                ? 1.0
+                : (actRows.first['multiplier'] as num?)?.toDouble() ?? 1.0;
+
+            final minutes = durationMs / 60000.0;
+            final xp = (minutes * multiplier).floor();
+
+            await db.update(
+              'sessions',
+              {'xpEarned': xp},
+              where: 'id = ?',
+              whereArgs: [row['id']],
+            );
+          }
         }
       },
     );
