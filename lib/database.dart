@@ -53,8 +53,7 @@ class Session {
   });
 
   /// Duration of this session. If it's still running, returns null.
-  Duration? get duration =>
-      endedAt == null ? null : endedAt!.difference(startedAt);
+  Duration? get duration => endedAt?.difference(startedAt);
 
   Map<String, dynamic> toMap() => {
     'id': id,
