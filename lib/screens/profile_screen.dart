@@ -8,6 +8,8 @@ import '../xp.dart';
 import '../widgets/heatmap.dart';
 import 'year_view.dart';
 
+import 'dart:io';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -25,6 +27,7 @@ class ProfileScreenState extends State<ProfileScreen> {
   bool _doneToday = false;
   bool _loading = true;
   Map<DateTime, Duration> _yearlyTotals = {};
+  String? _avatarImagePath;
 
   @override
   void initState() {
@@ -58,6 +61,7 @@ class ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _name = profile.name;
       _avatarColor = profile.avatarColor;
+      _avatarImagePath = profile.avatarImagePath;
       _totalXp = xp;
       _totalTime = totalTime;
       _currentStreak = streak.current;
@@ -74,11 +78,40 @@ class ProfileScreenState extends State<ProfileScreen> {
       builder: (_) => ProfileEditDialog(
         initialName: _name,
         initialAvatarColor: _avatarColor,
+        initialAvatarImagePath: _avatarImagePath,
       ),
     );
     if (result == null) return;
+
+    // Handle photo changes first.
+    if (result.removeAvatarImage) {
+      await ProfileStore.clearAvatarImage();
+    } else if (result.newAvatarSourcePath != null) {
+      await ProfileStore.saveAvatarImage(result.newAvatarSourcePath!);
+    }
+
     await ProfileStore.save(name: result.name, avatarColor: result.avatarColor);
     await _load();
+  }
+
+  Widget _initialAvatar(Color color) {
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        _name.isEmpty ? '?' : _name[0].toUpperCase(),
+        style: TextStyle(
+          fontSize: 52,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
   }
 
   @override
@@ -118,23 +151,18 @@ class ProfileScreenState extends State<ProfileScreen> {
             Center(
               child: GestureDetector(
                 onTap: _editProfile,
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _name.isEmpty ? '?' : _name[0].toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 52,
-                      fontWeight: FontWeight.w600,
-                      color: color,
-                    ),
-                  ),
-                ),
+                child: _avatarImagePath != null
+                    ? ClipOval(
+                        child: Image.file(
+                          File(_avatarImagePath!),
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stack) =>
+                              _initialAvatar(color),
+                        ),
+                      )
+                    : _initialAvatar(color),
               ),
             ),
             const SizedBox(height: 16),
