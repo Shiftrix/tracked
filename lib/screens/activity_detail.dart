@@ -125,6 +125,44 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     }
   }
 
+  Future<void> _confirmDeleteSession(Session session) async {
+    final dur = session.duration;
+    if (dur == null) return; // running sessions can't be deleted here
+
+    final timeStr =
+        '${session.startedAt.day}/${session.startedAt.month} at '
+        '${session.startedAt.hour.toString().padLeft(2, '0')}:'
+        '${session.startedAt.minute.toString().padLeft(2, '0')}';
+
+    final xpPart = session.xpEarned > 0 ? '  (+${session.xpEarned} XP)' : '';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete session?'),
+        content: Text(
+          '${_formatSessionDuration(dur)}$xpPart on $timeStr.\n\n'
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    await AppDatabase.deleteSession(session.id!);
+    await _loadAll();
+  }
+
   /// Format a Duration as HH:MM:SS, for the live timer.
   String _formatClock(Duration d) {
     final h = d.inHours.toString().padLeft(2, '0');
@@ -360,6 +398,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
                 return ListTile(
                   dense: true,
+                  onLongPress: () => _confirmDeleteSession(s),
                   title: Text(
                     '${started.day}/${started.month} '
                     '${started.hour.toString().padLeft(2, '0')}:'

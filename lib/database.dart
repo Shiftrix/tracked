@@ -184,6 +184,12 @@ class AppDatabase {
     });
   }
 
+  /// Delete a single session by id. Returns the number of rows deleted.
+  static Future<int> deleteSession(int sessionId) async {
+    final db = await instance;
+    return db.delete('sessions', where: 'id = ?', whereArgs: [sessionId]);
+  }
+
   /// Mark a session as finished by writing its end time AND the XP earned.
   /// Returns the XP earned (0 if the session wasn't found).
   static Future<int> stopSession(int sessionId) async {
