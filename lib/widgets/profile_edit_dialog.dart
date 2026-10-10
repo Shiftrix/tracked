@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../profile_store.dart';
 import '../theme/activity_appearance.dart';
 
 class ProfileEditResult {
