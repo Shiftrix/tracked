@@ -74,6 +74,53 @@ class Session {
   );
 }
 
+/// A single row in the `tasks` table.
+class Task {
+  final int? id;
+  final String title;
+  final String? notes;
+  final DateTime? dueAt;
+  final int xpReward;
+  final DateTime? completedAt;
+  final DateTime createdAt;
+
+  Task({
+    this.id,
+    required this.title,
+    this.notes,
+    this.dueAt,
+    this.xpReward = 20,
+    this.completedAt,
+    required this.createdAt,
+  });
+
+  bool get isCompleted => completedAt != null;
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'title': title,
+    'notes': notes,
+    'dueAt': dueAt?.millisecondsSinceEpoch,
+    'xpReward': xpReward,
+    'completedAt': completedAt?.millisecondsSinceEpoch,
+    'createdAt': createdAt.millisecondsSinceEpoch,
+  };
+
+  factory Task.fromMap(Map<String, dynamic> map) => Task(
+    id: map['id'] as int?,
+    title: map['title'] as String,
+    notes: map['notes'] as String?,
+    dueAt: map['dueAt'] == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(map['dueAt'] as int),
+    xpReward: (map['xpReward'] as int?) ?? 20,
+    completedAt: map['completedAt'] == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(map['completedAt'] as int),
+    createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int),
+  );
+}
+
 /// Handles opening the database and exposing it to the rest of the app.
 class AppDatabase {
   static Database? _db;
@@ -90,7 +137,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE activities (
@@ -110,6 +157,19 @@ class AppDatabase {
             endedAt INTEGER,
             xpEarned INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (activityId) REFERENCES activities (id)
+          )
+        ''');
+
+        // Tasks: to-do list items.
+        await db.execute('''
+          CREATE TABLE tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            notes TEXT,
+            dueAt INTEGER,
+            xpReward INTEGER NOT NULL DEFAULT 20,
+            completedAt INTEGER,
+            createdAt INTEGER NOT NULL
           )
         ''');
 
@@ -169,6 +229,20 @@ class AppDatabase {
               whereArgs: [row['id']],
             );
           }
+        }
+        // v3 → v4: added tasks table.
+        if (oldVersion < 4) {
+          await db.execute('''
+            CREATE TABLE tasks (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              title TEXT NOT NULL,
+              notes TEXT,
+              dueAt INTEGER,
+              xpReward INTEGER NOT NULL DEFAULT 20,
+              completedAt INTEGER,
+              createdAt INTEGER NOT NULL
+            )
+          ''');
         }
       },
     );
@@ -615,5 +689,53 @@ class AppDatabase {
       result[day] = (result[day] ?? Duration.zero) + dur;
     }
     return result;
+  }
+
+  // ── Task CRUD ───────────────────────────────────────────────────────────
+
+  static Future<int> insertTask(Task task) async {
+    final db = await instance;
+    return db.insert('tasks', task.toMap());
+  }
+
+  static Future<void> updateTask(Task task) async {
+    final db = await instance;
+    await db.update(
+      'tasks',
+      task.toMap(),
+      where: 'id = ?',
+      whereArgs: [task.id],
+    );
+  }
+
+  static Future<void> deleteTask(int taskId) async {
+    final db = await instance;
+    await db.delete('tasks', where: 'id = ?', whereArgs: [taskId]);
+  }
+
+  static Future<void> completeTask(int taskId) async {
+    final db = await instance;
+    await db.update(
+      'tasks',
+      {'completedAt': DateTime.now().millisecondsSinceEpoch},
+      where: 'id = ?',
+      whereArgs: [taskId],
+    );
+  }
+
+  static Future<void> uncompleteTask(int taskId) async {
+    final db = await instance;
+    await db.update(
+      'tasks',
+      {'completedAt': null},
+      where: 'id = ?',
+      whereArgs: [taskId],
+    );
+  }
+
+  static Future<List<Task>> getAllTasks() async {
+    final db = await instance;
+    final rows = await db.query('tasks', orderBy: 'createdAt DESC');
+    return rows.map((r) => Task.fromMap(r)).toList();
   }
 }
