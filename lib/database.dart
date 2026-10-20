@@ -389,13 +389,23 @@ class AppDatabase {
     });
   }
 
-  /// Global XP earned across all sessions.
+  /// Global XP earned across all completed sessions AND tasks.
   static Future<int> totalXp() async {
     final db = await instance;
-    final rows = await db.rawQuery(
+
+    // Get XP from sessions
+    final sessionRows = await db.rawQuery(
       'SELECT SUM(xpEarned) AS total FROM sessions WHERE endedAt IS NOT NULL',
     );
-    return (rows.first['total'] as int?) ?? 0;
+    final sessionXp = (sessionRows.first['total'] as int?) ?? 0;
+
+    // Get XP from completed tasks
+    final taskRows = await db.rawQuery(
+      'SELECT SUM(xpReward) AS total FROM tasks WHERE completedAt IS NOT NULL',
+    );
+    final taskXp = (taskRows.first['total'] as int?) ?? 0;
+
+    return sessionXp + taskXp;
   }
 
   /// Sum of every completed session's duration, across all activities.
