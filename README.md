@@ -3,6 +3,8 @@
 An hour tracker for everything you do in your life — editing videos, gaming,
 gym, reading, coding. Track it all here.
 
+Join the discord for questions or recommendations: https://discord.com/invite/aVUzDMMC
+
 ## What it is
 
 A local-first time tracker with a gamified XP system. You press **Start** on
