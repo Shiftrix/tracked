@@ -21,19 +21,26 @@ No cloud. No accounts. No data leaving your device.
 - **Survives reboots, app kills, and screen locks** — the timer is
   timestamp-based, not tick-based, so nothing is ever lost
 
+### Tasks & To-Dos
+- **Full task management** — add, edit, complete, and delete.
+- **Smart urgency sorting** — Overdue, Today, This Week, Later, No Date.
+- **Swipe actions** — swipe right to complete, left to delete.
+- **Custom due dates** with optional times.
+- **XP rewards per task** to keep you motivated.
+
 ### Gamification
 - **XP for every minute tracked** — 1 XP/min baseline, with per-activity
   multipliers from 0.5× to 3×
+- **XP for completing tasks** — rewards stack with your timer sessions.
 - **Minecraft-style XP bar** on the profile with a level badge
-- **XP toast** pops up when you stop a session, flame icon on the first
-  session of the day
+- **XP toast** pops up when you stop a session or finish a task.
 - **Streak counter** with a Duolingo-style flame (lit when you've tracked
   today, greyed out when you haven't)
 - **Total time tracked** and **best-ever streak** on the profile
 
 ### Customisation
 - **Custom activities** — pick a name, colour, and icon for each one
-- **XP multiplier per activity** — reward the things you want to do more of
+- **Profile photos** — upload an image or use a coloured initial.
 - Full **rename, edit, and delete** on activities and sessions
 
 ### Visualisation
@@ -64,3 +71,16 @@ git clone https://github.com/Shiftrix/life_tracker.git
 cd life_tracker
 flutter pub get
 flutter build linux --release
+then run the binary from build/linux/x64/release/bundle/
+
+
+### Building from source
+
+Requires Flutter (stable channel) and the Android SDK.
+
+'''bash
+
+git clone https://github.com/Shiftrix/life_tracker.git
+cd life_tracker
+flutter pub get
+flutter run
