@@ -219,6 +219,30 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
+  int _calculateStreak(Task habit) {
+    final logs = _habitLogs[habit.id] ?? {};
+    if (logs.isEmpty) return 0;
+
+    int streak = 0;
+    DateTime cursor = DateTime.now();
+
+    // Format today's date
+    String dateStr(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    // If today isn't done yet, start checking from yesterday
+    if (!logs.contains(dateStr(cursor))) {
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+
+    // Count backwards
+    while (logs.contains(dateStr(cursor))) {
+      streak++;
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
   Widget _buildStreakGrid(Task habit) {
     final now = DateTime.now();
     final scheme = Theme.of(context).colorScheme;
@@ -306,19 +330,25 @@ class _TasksScreenState extends State<TasksScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-              leading: GestureDetector(
-                onTap: () => _toggleComplete(habit),
-                child: Icon(
-                  isDoneToday
-                      ? Icons.check_circle
-                      : (habit.isPositive
-                            ? Icons.thumb_up_alt_outlined
-                            : Icons.thumb_down_alt_outlined),
-                  color: isDoneToday
-                      ? Colors.green
-                      : (habit.isPositive ? Colors.green : Colors.red),
-                  size: 32, // Slightly bigger so it's easier to tap
-                ),
+              onTap: () => _toggleComplete(habit), // <--- ADD THIS HERE
+              leading: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${_calculateStreak(habit)}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: isDoneToday ? Colors.orange : Colors.grey,
+                    ),
+                  ),
+                  Icon(
+                    Icons.local_fire_department,
+                    size: 18,
+                    color: isDoneToday ? Colors.orange : Colors.grey,
+                  ),
+                ],
               ),
               title: Text(
                 habit.title,
@@ -334,10 +364,20 @@ class _TasksScreenState extends State<TasksScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Keep the thumb icon here as a visual indicator
+                  Icon(
+                    habit.isPositive
+                        ? Icons.thumb_up_alt
+                        : Icons.thumb_down_alt,
+                    size: 14,
+                    color: habit.isPositive ? Colors.green : Colors.red,
+                  ),
+                  const SizedBox(width: 4),
                   Text(
-                    '${habit.isPositive ? '+' : '-'}${habit.xpReward} XP',
+                    '${habit.isPositive ? '+' : '-'}${habit.xpReward}',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
+                      fontSize: 12,
                       color: habit.isPositive ? Colors.green : Colors.red,
                     ),
                   ),
