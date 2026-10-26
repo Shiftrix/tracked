@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../database.dart';
 import '../widgets/task_dialog.dart';
-import '../xp.dart'; // For formatting durations later if needed
 import '../widgets/xp_toast.dart';
 
 class TasksScreen extends StatefulWidget {
@@ -15,6 +14,7 @@ class TasksScreen extends StatefulWidget {
 class _TasksScreenState extends State<TasksScreen> {
   List<Task> _tasks = [];
   bool _loading = true;
+  bool _showHabits = false; // Toggle between Tasks and Habits
 
   @override
   void initState() {
@@ -58,13 +58,11 @@ class _TasksScreenState extends State<TasksScreen> {
     } else {
       await AppDatabase.completeTask(task.id!);
 
-      // Show the toast if the task was worth XP!
       if (task.xpReward > 0 && mounted) {
         showXpToast(
           context,
-          amount: task.xpReward,
-          // Use the theme's primary color, or a specific color for tasks
-          color: Theme.of(context).colorScheme.primary,
+          amount: task.isPositive ? task.xpReward : -task.xpReward,
+          color: task.isPositive ? Colors.green : Colors.red,
         );
       }
     }
@@ -72,11 +70,10 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> _deleteTask(Task task) async {
-    // Show a confirm dialog before deleting
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete task?'),
+        title: const Text('Delete?'),
         content: Text('Are you sure you want to delete "${task.title}"?'),
         actions: [
           TextButton(
@@ -92,13 +89,15 @@ class _TasksScreenState extends State<TasksScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true) {
+      await _loadTasks(); // Bring it back if cancelled
+      return;
+    }
     await AppDatabase.deleteTask(task.id!);
     await _loadTasks();
   }
 
-  // ── Urgency Sorting Logic ───────────────────────────────────────────────
-
+  // ── Urgency Sorting Logic for Tasks ───────────────────────────────────────
   String _getSectionFor(Task task) {
     if (task.isCompleted) return 'Completed';
     if (task.dueAt == null) return 'No Date';
@@ -129,7 +128,6 @@ class _TasksScreenState extends State<TasksScreen> {
       dayStr = '${date.day}/${date.month}';
     }
 
-    // Only show time if it's not the default 23:59 end-of-day
     if (date.hour != 23 || date.minute != 59) {
       final timeStr =
           '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
@@ -138,9 +136,119 @@ class _TasksScreenState extends State<TasksScreen> {
     return dayStr;
   }
 
+  // ── Main Builder ──────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // 1. Group tasks by their section
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Tasks'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'New item',
+            onPressed: _addTask,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Toggle
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  label: Text('Tasks'),
+                  icon: Icon(Icons.check_circle_outline),
+                ),
+                ButtonSegment(
+                  value: true,
+                  label: Text('Habits'),
+                  icon: Icon(Icons.local_fire_department_outlined),
+                ),
+              ],
+              selected: {_showHabits},
+              onSelectionChanged: (Set<bool> newSelection) {
+                setState(() => _showHabits = newSelection.first);
+              },
+            ),
+          ),
+
+          // List Area
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildList() {
+    final filteredTasks = _tasks
+        .where((t) => t.isHabit == _showHabits)
+        .toList();
+
+    if (filteredTasks.isEmpty) {
+      return _EmptyState(isHabit: _showHabits);
+    }
+
+    // 1. Render Habits List
+    if (_showHabits) {
+      return ListView.builder(
+        padding: const EdgeInsets.only(bottom: 100),
+        itemCount: filteredTasks.length,
+        itemBuilder: (context, i) {
+          final habit = filteredTasks[i];
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: ListTile(
+              onTap: () => _toggleComplete(habit),
+              leading: Icon(
+                habit.isCompleted
+                    ? Icons.check_circle
+                    : (habit.isPositive
+                          ? Icons.thumb_up_alt_outlined
+                          : Icons.thumb_down_alt_outlined),
+                color: habit.isCompleted
+                    ? Colors.green
+                    : (habit.isPositive ? Colors.green : Colors.red),
+              ),
+              title: Text(
+                habit.title,
+                style: TextStyle(
+                  decoration: habit.isCompleted
+                      ? TextDecoration.lineThrough
+                      : null,
+                  color: habit.isCompleted ? Colors.grey : null,
+                ),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${habit.isPositive ? '+' : '-'}${habit.xpReward} XP',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: habit.isPositive ? Colors.green : Colors.red,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 18),
+                    onPressed: () => _editTask(habit),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    // 2. Render Tasks List (Sorted by Urgency)
     final sections = <String, List<Task>>{
       'Overdue': [],
       'Today': [],
@@ -150,11 +258,10 @@ class _TasksScreenState extends State<TasksScreen> {
       'Completed': [],
     };
 
-    for (final task in _tasks) {
+    for (final task in filteredTasks) {
       sections[_getSectionFor(task)]!.add(task);
     }
 
-    // 2. Build a flat list of widgets (headers + cards)
     final List<Widget> listItems = [];
 
     for (final sectionName in [
@@ -168,7 +275,6 @@ class _TasksScreenState extends State<TasksScreen> {
       final sectionTasks = sections[sectionName]!;
       if (sectionTasks.isEmpty) continue;
 
-      // Section Header
       listItems.add(
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -185,7 +291,6 @@ class _TasksScreenState extends State<TasksScreen> {
         ),
       );
 
-      // Section Tasks
       for (final task in sectionTasks) {
         final isCompleted = task.isCompleted;
         final scheme = Theme.of(context).colorScheme;
@@ -212,13 +317,7 @@ class _TasksScreenState extends State<TasksScreen> {
               child: const Icon(Icons.delete, color: Colors.white),
             ),
             onDismissed: (direction) {
-              // 1. Immediately remove the task from the local UI list
-              // so Flutter doesn't throw an error.
-              setState(() {
-                _tasks.remove(task);
-              });
-
-              // 2. Then do the database work in the background.
+              setState(() => _tasks.remove(task));
               if (direction == DismissDirection.startToEnd) {
                 _toggleComplete(task);
               } else {
@@ -308,32 +407,18 @@ class _TasksScreenState extends State<TasksScreen> {
       }
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tasks'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'New task',
-            onPressed: _addTask,
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _tasks.isEmpty
-          ? _EmptyState()
-          : ListView(
-              padding: const EdgeInsets.only(
-                bottom: 100,
-              ), // Padding for the floating pill
-              children: listItems,
-            ),
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 100),
+      children: listItems,
     );
   }
 }
 
 class _EmptyState extends StatelessWidget {
+  final bool isHabit;
+
+  const _EmptyState({this.isHabit = false});
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -342,13 +427,13 @@ class _EmptyState extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.check_circle_outline,
+            isHabit ? Icons.local_fire_department : Icons.check_circle_outline,
             size: 64,
             color: scheme.primary.withValues(alpha: 0.4),
           ),
           const SizedBox(height: 16),
           Text(
-            'No tasks yet',
+            isHabit ? 'No habits yet' : 'No tasks yet',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w500,

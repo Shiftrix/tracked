@@ -17,6 +17,8 @@ class _TaskDialogState extends State<TaskDialog> {
   late final TextEditingController _xpController;
 
   DateTime? _dueAt;
+  late bool _isHabit;
+  late bool _isPositive;
 
   @override
   void initState() {
@@ -28,6 +30,8 @@ class _TaskDialogState extends State<TaskDialog> {
       text: (task?.xpReward ?? 20).toString(),
     );
     _dueAt = task?.dueAt;
+    _isHabit = task?.isHabit ?? false;
+    _isPositive = task?.isPositive ?? true;
   }
 
   @override
@@ -88,6 +92,8 @@ class _TaskDialogState extends State<TaskDialog> {
       xpReward: xp,
       completedAt: widget.initialTask?.completedAt,
       createdAt: widget.initialTask?.createdAt ?? DateTime.now(),
+      isHabit: _isHabit,
+      isPositive: _isPositive,
     );
 
     Navigator.of(context).pop(task);
@@ -127,6 +133,44 @@ class _TaskDialogState extends State<TaskDialog> {
                 ),
               ),
               const SizedBox(height: 16),
+              // Habit Mode Toggles
+              Row(
+                children: [
+                  Expanded(
+                    child: SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Make this a habit',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      value: _isHabit,
+                      onChanged: (val) => setState(() => _isHabit = val),
+                    ),
+                  ),
+                ],
+              ),
+
+              if (_isHabit)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(
+                        value: true,
+                        label: Text('Good (+XP)'),
+                        icon: Icon(Icons.add),
+                      ),
+                      ButtonSegment(
+                        value: false,
+                        label: Text('Bad (-XP)'),
+                        icon: Icon(Icons.remove),
+                      ),
+                    ],
+                    selected: {_isPositive},
+                    onSelectionChanged: (val) =>
+                        setState(() => _isPositive = val.first),
+                  ),
+                ),
 
               // Due Date & Time
               Row(

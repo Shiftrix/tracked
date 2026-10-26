@@ -84,6 +84,10 @@ class Task {
   final DateTime? completedAt;
   final DateTime createdAt;
 
+  // NEW FIELDS
+  final bool isHabit;
+  final bool isPositive;
+
   Task({
     this.id,
     required this.title,
@@ -92,6 +96,8 @@ class Task {
     this.xpReward = 20,
     this.completedAt,
     required this.createdAt,
+    this.isHabit = false, // Defaults to a normal task
+    this.isPositive = true, // Defaults to giving XP
   });
 
   bool get isCompleted => completedAt != null;
@@ -104,6 +110,8 @@ class Task {
     'xpReward': xpReward,
     'completedAt': completedAt?.millisecondsSinceEpoch,
     'createdAt': createdAt.millisecondsSinceEpoch,
+    'isHabit': isHabit ? 1 : 0,
+    'isPositive': isPositive ? 1 : 0,
   };
 
   factory Task.fromMap(Map<String, dynamic> map) => Task(
@@ -118,6 +126,8 @@ class Task {
         ? null
         : DateTime.fromMillisecondsSinceEpoch(map['completedAt'] as int),
     createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int),
+    isHabit: (map['isHabit'] as int? ?? 0) == 1,
+    isPositive: (map['isPositive'] as int? ?? 1) == 1,
   );
 }
 
@@ -137,7 +147,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE activities (
@@ -169,7 +179,9 @@ class AppDatabase {
             dueAt INTEGER,
             xpReward INTEGER NOT NULL DEFAULT 20,
             completedAt INTEGER,
-            createdAt INTEGER NOT NULL
+            createdAt INTEGER NOT NULL,
+            isHabit INTEGER NOT NULL DEFAULT 0,
+            isPositive INTEGER NOT NULL DEFAULT 1
           )
         ''');
 
@@ -243,6 +255,15 @@ class AppDatabase {
               createdAt INTEGER NOT NULL
             )
           ''');
+        }
+        // v4 → v5: added habit tracking to tasks
+        if (oldVersion < 5) {
+          await db.execute(
+            'ALTER TABLE tasks ADD COLUMN isHabit INTEGER NOT NULL DEFAULT 0',
+          );
+          await db.execute(
+            'ALTER TABLE tasks ADD COLUMN isPositive INTEGER NOT NULL DEFAULT 1',
+          );
         }
       },
     );
@@ -393,19 +414,25 @@ class AppDatabase {
   static Future<int> totalXp() async {
     final db = await instance;
 
-    // Get XP from sessions
     final sessionRows = await db.rawQuery(
       'SELECT SUM(xpEarned) AS total FROM sessions WHERE endedAt IS NOT NULL',
     );
     final sessionXp = (sessionRows.first['total'] as int?) ?? 0;
 
-    // Get XP from completed tasks
-    final taskRows = await db.rawQuery(
-      'SELECT SUM(xpReward) AS total FROM tasks WHERE completedAt IS NOT NULL',
+    // Calculate positive tasks (+XP)
+    final posTaskRows = await db.rawQuery(
+      'SELECT SUM(xpReward) AS total FROM tasks WHERE completedAt IS NOT NULL AND isPositive = 1',
     );
-    final taskXp = (taskRows.first['total'] as int?) ?? 0;
+    final posTaskXp = (posTaskRows.first['total'] as int?) ?? 0;
 
-    return sessionXp + taskXp;
+    // Calculate negative habits (-XP)
+    final negTaskRows = await db.rawQuery(
+      'SELECT SUM(xpReward) AS total FROM tasks WHERE completedAt IS NOT NULL AND isPositive = 0',
+    );
+    final negTaskXp = (negTaskRows.first['total'] as int?) ?? 0;
+
+    // Final math: Sessions + Good Tasks - Bad Habits
+    return sessionXp + posTaskXp - negTaskXp;
   }
 
   /// Sum of every completed session's duration, across all activities.
