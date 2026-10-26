@@ -147,7 +147,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE activities (
@@ -182,6 +182,16 @@ class AppDatabase {
             createdAt INTEGER NOT NULL,
             isHabit INTEGER NOT NULL DEFAULT 0,
             isPositive INTEGER NOT NULL DEFAULT 1
+          )
+        ''');
+
+        // Habit Logs: one row per day a habit is completed.
+        await db.execute('''
+          CREATE TABLE habit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            taskId INTEGER NOT NULL,
+            completedOn TEXT NOT NULL,
+            FOREIGN KEY (taskId) REFERENCES tasks (id)
           )
         ''');
 
@@ -264,6 +274,18 @@ class AppDatabase {
           await db.execute(
             'ALTER TABLE tasks ADD COLUMN isPositive INTEGER NOT NULL DEFAULT 1',
           );
+        }
+
+        // v5 → v6: added habit_logs table for daily history
+        if (oldVersion < 6) {
+          await db.execute('''
+            CREATE TABLE habit_logs (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              taskId INTEGER NOT NULL,
+              completedOn TEXT NOT NULL,
+              FOREIGN KEY (taskId) REFERENCES tasks (id)
+            )
+          ''');
         }
       },
     );
@@ -410,29 +432,35 @@ class AppDatabase {
     });
   }
 
-  /// Global XP earned across all completed sessions AND tasks.
   static Future<int> totalXp() async {
     final db = await instance;
 
+    // 1. XP from sessions
     final sessionRows = await db.rawQuery(
       'SELECT SUM(xpEarned) AS total FROM sessions WHERE endedAt IS NOT NULL',
     );
     final sessionXp = (sessionRows.first['total'] as int?) ?? 0;
 
-    // Calculate positive tasks (+XP)
-    final posTaskRows = await db.rawQuery(
-      'SELECT SUM(xpReward) AS total FROM tasks WHERE completedAt IS NOT NULL AND isPositive = 1',
+    // 2. XP from normal tasks (ignoring habits)
+    final taskRows = await db.rawQuery(
+      'SELECT SUM(xpReward) AS total FROM tasks WHERE completedAt IS NOT NULL AND isHabit = 0',
     );
-    final posTaskXp = (posTaskRows.first['total'] as int?) ?? 0;
+    final taskXp = (taskRows.first['total'] as int?) ?? 0;
 
-    // Calculate negative habits (-XP)
-    final negTaskRows = await db.rawQuery(
-      'SELECT SUM(xpReward) AS total FROM tasks WHERE completedAt IS NOT NULL AND isPositive = 0',
-    );
-    final negTaskXp = (negTaskRows.first['total'] as int?) ?? 0;
+    // 3. XP from habit logs (Positive and Negative)
+    final habitRows = await db.rawQuery('''
+      SELECT 
+        SUM(CASE WHEN t.isPositive = 1 THEN t.xpReward ELSE 0 END) AS posXp,
+        SUM(CASE WHEN t.isPositive = 0 THEN t.xpReward ELSE 0 END) AS negXp
+      FROM habit_logs l
+      JOIN tasks t ON l.taskId = t.id
+    ''');
 
-    // Final math: Sessions + Good Tasks - Bad Habits
-    return sessionXp + posTaskXp - negTaskXp;
+    final posHabitXp = (habitRows.first['posXp'] as int?) ?? 0;
+    final negHabitXp = (habitRows.first['negXp'] as int?) ?? 0;
+
+    // Final math: Sessions + Tasks + (Positive Habits - Negative Habits)
+    return sessionXp + taskXp + posHabitXp - negHabitXp;
   }
 
   /// Sum of every completed session's duration, across all activities.
@@ -774,5 +802,42 @@ class AppDatabase {
     final db = await instance;
     final rows = await db.query('tasks', orderBy: 'createdAt DESC');
     return rows.map((r) => Task.fromMap(r)).toList();
+  }
+
+  // ── Habit Logging ────────────────────────────────────────────────────────
+
+  /// Toggle a habit for a specific date. If it exists, delete it. If not, insert it.
+  static Future<void> toggleHabitLog(int taskId, DateTime date) async {
+    final db = await instance;
+    final dateStr =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+    final existing = await db.query(
+      'habit_logs',
+      where: 'taskId = ? AND completedOn = ?',
+      whereArgs: [taskId, dateStr],
+    );
+
+    if (existing.isNotEmpty) {
+      await db.delete(
+        'habit_logs',
+        where: 'taskId = ? AND completedOn = ?',
+        whereArgs: [taskId, dateStr],
+      );
+    } else {
+      await db.insert('habit_logs', {'taskId': taskId, 'completedOn': dateStr});
+    }
+  }
+
+  /// Get the dates (as strings) a specific habit was completed.
+  static Future<Set<String>> getHabitLogDates(int taskId) async {
+    final db = await instance;
+    final rows = await db.query(
+      'habit_logs',
+      columns: ['completedOn'],
+      where: 'taskId = ?',
+      whereArgs: [taskId],
+    );
+    return rows.map((r) => r['completedOn'] as String).toSet();
   }
 }

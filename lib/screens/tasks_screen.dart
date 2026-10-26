@@ -15,6 +15,7 @@ class _TasksScreenState extends State<TasksScreen> {
   List<Task> _tasks = [];
   bool _loading = true;
   bool _showHabits = false; // Toggle between Tasks and Habits
+  Map<int, Set<String>> _habitLogs = {};
 
   @override
   void initState() {
@@ -27,6 +28,16 @@ class _TasksScreenState extends State<TasksScreen> {
     final tasks = await AppDatabase.getAllTasks();
     if (!mounted) return;
     setState(() {
+      _tasks = tasks;
+      _loading = false;
+    });
+    final habits = tasks.where((t) => t.isHabit).toList();
+    final logs = <int, Set<String>>{};
+    for (var h in habits) {
+      logs[h.id!] = await AppDatabase.getHabitLogDates(h.id!);
+    }
+    setState(() {
+      _habitLogs = logs;
       _tasks = tasks;
       _loading = false;
     });
@@ -53,11 +64,33 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> _toggleComplete(Task task) async {
+    if (task.isHabit) {
+      // Habits are logged by the day, not just "completed"
+      final today = DateTime.now();
+      final dateStr =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+      await AppDatabase.toggleHabitLog(task.id!, today);
+
+      // Show XP toast if they just completed it for today (not un-completed it)
+      final logs = await AppDatabase.getHabitLogDates(task.id!);
+      if (logs.contains(dateStr) && task.xpReward > 0 && mounted) {
+        showXpToast(
+          context,
+          amount: task.isPositive ? task.xpReward : -task.xpReward,
+          color: task.isPositive ? Colors.green : Colors.red,
+        );
+      }
+
+      await _loadTasks();
+      return;
+    }
+
+    // Original logic for normal tasks
     if (task.isCompleted) {
       await AppDatabase.uncompleteTask(task.id!);
     } else {
       await AppDatabase.completeTask(task.id!);
-
       if (task.xpReward > 0 && mounted) {
         showXpToast(
           context,
@@ -186,6 +219,67 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
+  Widget _buildStreakGrid(Task habit) {
+    final now = DateTime.now();
+    final scheme = Theme.of(context).colorScheme;
+    final logs = _habitLogs[habit.id] ?? {};
+
+    // Build the last 7 days (from 6 days ago up to today)
+    final days = List.generate(7, (index) {
+      return now.subtract(Duration(days: 6 - index));
+    });
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: days.map((date) {
+        final dateStr =
+            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        final isDone = logs.contains(dateStr);
+        final isToday = date.day == now.day;
+
+        return GestureDetector(
+          onTap: () async {
+            await AppDatabase.toggleHabitLog(habit.id!, date);
+
+            // If they just checked off today, show the toast
+            if (isToday && !isDone && habit.xpReward > 0 && mounted) {
+              showXpToast(
+                context,
+                amount: habit.isPositive ? habit.xpReward : -habit.xpReward,
+                color: habit.isPositive ? Colors.green : Colors.red,
+              );
+            }
+
+            await _loadTasks();
+          },
+          child: Container(
+            width: 20,
+            height: 20,
+            margin: const EdgeInsets.only(right: 3),
+            decoration: BoxDecoration(
+              color: isDone
+                  ? (habit.isPositive ? Colors.green : Colors.red)
+                  : scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              shape: BoxShape.circle,
+              border: isToday
+                  ? Border.all(color: scheme.onSurface, width: 1.5)
+                  : null,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              ['M', 'T', 'W', 'T', 'F', 'S', 'S'][date.weekday - 1],
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: isDone ? Colors.white : scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildList() {
     final filteredTasks = _tasks
         .where((t) => t.isHabit == _showHabits)
@@ -202,28 +296,40 @@ class _TasksScreenState extends State<TasksScreen> {
         itemCount: filteredTasks.length,
         itemBuilder: (context, i) {
           final habit = filteredTasks[i];
+
+          final today = DateTime.now();
+          final todayStr =
+              '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+          final isDoneToday = _habitLogs[habit.id]?.contains(todayStr) ?? false;
+
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: ListTile(
-              onTap: () => _toggleComplete(habit),
-              leading: Icon(
-                habit.isCompleted
-                    ? Icons.check_circle
-                    : (habit.isPositive
-                          ? Icons.thumb_up_alt_outlined
-                          : Icons.thumb_down_alt_outlined),
-                color: habit.isCompleted
-                    ? Colors.green
-                    : (habit.isPositive ? Colors.green : Colors.red),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+              leading: GestureDetector(
+                onTap: () => _toggleComplete(habit),
+                child: Icon(
+                  isDoneToday
+                      ? Icons.check_circle
+                      : (habit.isPositive
+                            ? Icons.thumb_up_alt_outlined
+                            : Icons.thumb_down_alt_outlined),
+                  color: isDoneToday
+                      ? Colors.green
+                      : (habit.isPositive ? Colors.green : Colors.red),
+                  size: 32, // Slightly bigger so it's easier to tap
+                ),
               ),
               title: Text(
                 habit.title,
                 style: TextStyle(
-                  decoration: habit.isCompleted
-                      ? TextDecoration.lineThrough
-                      : null,
-                  color: habit.isCompleted ? Colors.grey : null,
+                  decoration: isDoneToday ? TextDecoration.lineThrough : null,
+                  color: isDoneToday ? Colors.grey : null,
                 ),
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 4),
+                child: _buildStreakGrid(habit),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
